@@ -1,0 +1,17 @@
+<mat-toolbar color="primary">
+  <div class="brand">
+    <app-logo [size]="180"></app-logo>
+    <span class="brand-text">Office Management</span>
+  </div>
+</mat-toolbar>
+<nav mat-tab-nav-bar [tabPanel]="tabPanel" backgroundColor="primary">
+  <a mat-tab-link
+     *ngFor="let link of navLinks"
+     [routerLink]="link.path"
+     routerLinkActive #rla="routerLinkActive"
+     [active]="rla.isActive"
+     [routerLinkActiveOptions]="{exact: false}">
+    {{link.label}}
+  </a>
+</nav>
+<mat-tab-nav-panel #tabPanel></mat-tab-nav-panel>

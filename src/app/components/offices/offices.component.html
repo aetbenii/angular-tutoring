@@ -1,0 +1,37 @@
+<div class="offices-container">
+  <h1>Offices</h1>
+
+  <mat-card class="floor-selector">
+    <div *ngIf="reservingForEmployee" class="reservation-context">
+      <mat-icon>person</mat-icon>
+      <span>Reserving seat for: {{reservingForEmployee.name}}</span>
+    </div>
+
+    <mat-form-field>
+      <mat-label>Select Floor</mat-label>
+      <mat-select [formControl]="selectedFloorControl">
+        <mat-option *ngFor="let floor of floors()" [value]="floor.floorNumber">
+          {{floor.name}}
+        </mat-option>
+      </mat-select>
+      <mat-icon matSuffix>apartment</mat-icon>
+    </mat-form-field>
+  </mat-card>
+
+  <div class="floor-content">
+    <div *ngIf="loading" class="loading-container">
+      <mat-spinner diameter="40"></mat-spinner>
+    </div>
+
+    <div *ngIf="error" class="error-message">
+      <mat-icon>error</mat-icon>
+      <p>{{error}}</p>
+    </div>
+
+    <app-room-grid
+      *ngIf="!loading && !error && selectedFloorControl.value !== null"
+      [floorNumber]="selectedFloorControl.value"
+      (seatSelected)="onSeatSelected($event)"
+    ></app-room-grid>
+  </div>
+</div>

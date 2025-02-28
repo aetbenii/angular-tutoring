@@ -1,0 +1,112 @@
+### Get Employees with pagination and search
+GET {{baseUrl}}/api/employees?search=engineer&page=0&size=10
+Accept: application/json
+
+### Get Employee by ID
+GET {{baseUrl}}/api/employees/1
+Accept: application/json
+
+### Create new Employee
+POST {{baseUrl}}/api/employees
+Content-Type: application/json
+
+{
+    "firstName": "Alice",
+    "lastName": "Cooper",
+    "occupation": "Software Engineer"
+}
+
+### Update Employee
+PUT {{baseUrl}}/api/employees/1
+Content-Type: application/json
+
+{
+    "id": 1,
+    "firstName": "John",
+    "lastName": "Doe",
+    "occupation": "Senior Software Engineer"
+}
+
+### Delete Employee
+DELETE {{baseUrl}}/api/employees/1
+
+### Get Employee Seats
+GET {{baseUrl}}/api/employees/1/seats
+Accept: application/json
+
+### Example Responses
+
+# GET /api/employees/{id}/seats
+# Response 200 OK
+[
+  {
+    "id": 1,
+    "seatNumber": "A101",
+    "createdAt": [2024, 1, 30, 13, 45, 30],
+    "occupied": true
+  },
+  {
+    "id": 2,
+    "seatNumber": "B205",
+    "createdAt": [2024, 1, 30, 13, 45, 30],
+    "occupied": true
+  }
+]
+
+
+# GET /api/employees
+# Response 200 OK
+{
+    "items": [
+        {
+            "id": 1,
+            "firstName": "John",
+            "lastName": "Doe",
+            "occupation": "Software Engineer"
+        },
+        {
+            "id": 5,
+            "firstName": "Robert",
+            "lastName": "Brown",
+            "occupation": "DevOps Engineer"
+        }
+    ],
+    "total": 12,
+    "page": 0,
+    "size": 10
+}
+
+# GET /api/employees/{id}
+# Response 200 OK
+{
+    "id": 1,
+    "firstName": "John",
+    "lastName": "Doe",
+    "occupation": "Software Engineer"
+}
+
+# Error Response 404 Not Found
+{
+    "error": "Employee not found",
+    "status": 404,
+    "timestamp": "2024-01-30T13:45:30.123Z"
+}
+
+# Error Response 400 Bad Request
+{
+    "error": "Invalid request parameters",
+    "status": 400,
+    "details": {
+        "page": "must be greater than or equal to 0",
+        "size": "must be greater than 0"
+    },
+    "timestamp": "2024-01-30T13:45:30.123Z"
+}
+
+# Notes:
+# - The search parameter performs case-insensitive search on firstName, lastName, and occupation
+# - Page is 0-based
+# - Size parameter determines items per page
+# - Total field in response helps with pagination calculations
+# - All endpoints return appropriate HTTP status codes
+# - Error responses include detailed information for debugging

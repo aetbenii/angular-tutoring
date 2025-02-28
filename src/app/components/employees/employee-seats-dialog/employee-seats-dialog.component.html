@@ -1,0 +1,52 @@
+<div class="dialog-container">
+  <div class="dialog-header">
+    <h2>Reserved Seats for {{employee.fullName}}</h2>
+    <button mat-icon-button (click)="close()">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <div class="dialog-content">
+    <div *ngIf="loading" class="loading-container">
+      <mat-spinner diameter="40"></mat-spinner>
+    </div>
+
+    <div *ngIf="error" class="error-message">
+      <mat-icon>error</mat-icon>
+      <p>{{error}}</p>
+    </div>
+
+    <div *ngIf="!loading && !error && seats.length === 0" class="no-seats">
+      <mat-icon>info</mat-icon>
+      <p>No seats reserved</p>
+    </div>
+
+    <div *ngIf="!loading && !error && seats.length > 0" class="seats-list">
+      <div *ngFor="let seat of seats" class="seat-item">
+        <div class="seat-location">
+          <div class="location-header">
+            <mat-icon>apartment</mat-icon>
+            <span class="floor-name">{{seat.room.floor.name}}</span>
+          </div>
+          <div class="location-details">
+            <div class="room-info">
+              <mat-icon>meeting_room</mat-icon>
+              <span>{{seat.room.name}}</span>
+            </div>
+            <div class="seat-info">
+              <mat-icon>event_seat</mat-icon>
+              <span>{{seat.seatNumber}}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div *ngIf="!loading && !error" class="dialog-actions">
+      <button mat-raised-button color="primary" (click)="reserveSeat()">
+        <mat-icon>add</mat-icon>
+        Reserve Seat
+      </button>
+    </div>
+  </div>
+</div>

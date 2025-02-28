@@ -1,0 +1,124 @@
+.dashboard-container {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 1rem;
+}
+
+.stat-card {
+  .stat-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+
+    .stat-info {
+      h3 {
+        margin: 0;
+        color: rgba(0, 0, 0, 0.7);
+        font-size: 1rem;
+      }
+
+      .stat-number {
+        margin: 0.5rem 0 0;
+        font-size: 2rem;
+        font-weight: 500;
+        color: #1976d2;
+      }
+    }
+
+    .stat-icon {
+      font-size: 2.5rem;
+      width: 2.5rem;
+      height: 2.5rem;
+      color: #1976d2;
+    }
+  }
+}
+
+.occupancy-card {
+  .occupancy-content {
+    padding: 1rem;
+
+    .occupancy-rate {
+      font-size: 2rem;
+      font-weight: 500;
+      color: #1976d2;
+      margin: 1rem 0;
+    }
+  }
+}
+
+.distribution-card {
+  .distribution-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 1rem;
+
+    .floor-stats {
+      .floor-header {
+        margin-bottom: 0.5rem;
+        
+        h4 {
+          margin: 0;
+          color: rgba(0, 0, 0, 0.87);
+        }
+      }
+
+      .stats-bars {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+
+        .stat-bar {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+
+          .label {
+            min-width: 60px;
+            color: rgba(0, 0, 0, 0.6);
+          }
+
+          .bar-container {
+            flex: 1;
+            background: #f5f5f5;
+            border-radius: 4px;
+            overflow: hidden;
+
+            .bar {
+              height: 24px;
+              display: flex;
+              align-items: center;
+              padding: 0 8px;
+              color: white;
+              font-size: 0.875rem;
+              transition: width 0.3s ease;
+
+              &.offices {
+                background: #1976d2;
+              }
+
+              &.seats {
+                background: #4caf50;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+} 

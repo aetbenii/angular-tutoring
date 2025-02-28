@@ -1,0 +1,31 @@
+<div class="room-grid">
+  @if (selectedFloor()) {
+    <h2>{{ selectedFloor()?.name }}</h2>
+    <div class="rooms">
+      @for (room of selectedFloor()?.rooms; track room.id) {
+        <mat-card class="room">
+          <mat-card-content>
+            <div class="room-content">
+              <div class="room-info">
+                <h3>{{ room.name }}</h3>
+                <p class="room-number">Room {{ room.roomNumber }}</p>
+              </div>
+              <div class="seats">
+                @for (seat of room.seats; track seat.id) {
+                  <div 
+                    class="seat" 
+                    [class.occupied]="seat.occupied"
+                    (click)="onSeatClick(room.id, seat.id)">
+                    {{ seat.seatNumber }}
+                  </div>
+                }
+              </div>
+            </div>
+          </mat-card-content>
+        </mat-card>
+      }
+    </div>
+  } @else {
+    <p class="no-selection">Please select a floor</p>
+  }
+</div>

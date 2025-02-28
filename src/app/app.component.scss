@@ -1,0 +1,17 @@
+.app-container {
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  height: 100vh;
+  gap: 1rem;
+  padding: 1rem;
+  background-color: #fff;
+
+  .floor-list-container {
+    height: 100%;
+  }
+
+  .room-grid-container {
+    height: 100%;
+    overflow-y: auto;
+  }
+}

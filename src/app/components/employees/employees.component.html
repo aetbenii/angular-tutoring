@@ -1,0 +1,34 @@
+<div class="employees-container">
+  <h1>Employees</h1>
+
+  <mat-card class="search-container">
+    <mat-form-field>
+      <mat-label>Search by name or occupation</mat-label>
+      <input matInput
+        #searchInput
+        [formControl]="searchControl"
+        placeholder="Type to search...">
+      <mat-icon matSuffix>search</mat-icon>
+    </mat-form-field>
+  </mat-card>
+
+  <div class="employees-grid" #employeesGrid (scroll)="onScroll($event)">
+    <mat-card class="employee-card" *ngFor="let employee of employees" (click)="openSeatsDialog(employee)">
+      <mat-card-content>
+        <div class="employee-content">
+          <div class="employee-info">
+            <h3>{{employee.fullName}}</h3>
+            <p class="occupation">{{employee.occupation}}</p>
+            <p class="employee-id">ID: {{employee.id}}</p>
+          </div>
+          <mat-icon class="employee-icon">person</mat-icon>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <div *ngIf="error" class="error-message">
+      <mat-icon color="warn">error</mat-icon>
+      <p>{{error}}</p>
+    </div>
+  </div>
+</div>

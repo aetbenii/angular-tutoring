@@ -1,0 +1,7 @@
+.angular
+dist
+node_modules
+coverage
+.vscode
+test-results/
+playwright-report/

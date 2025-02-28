@@ -1,0 +1,18 @@
+/* You can add global styles to this file, and also import other style files */
+@use '@angular/material' as mat;
+
+html, body { height: 100%; }
+body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+
+.mat-mdc-card {
+  --mdc-elevated-card-container-color: white;
+}
+
+.error-snackbar {
+  background: #d32f2f;
+  color: white;
+
+  .mat-simple-snackbar-action {
+    color: white;
+  }
+}

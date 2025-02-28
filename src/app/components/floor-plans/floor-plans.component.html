@@ -1,0 +1,60 @@
+<div class="floor-plans-container">
+  <h1>Office assignments</h1>
+
+  <mat-card class="floor-selector">
+    <mat-form-field>
+      <mat-label>Select Floor</mat-label>
+      <mat-select [formControl]="selectedFloorControl">
+        <mat-option *ngFor="let floor of floors()" [value]="floor.floorNumber">
+          {{floor.name}}
+        </mat-option>
+      </mat-select>
+      <mat-icon matSuffix>apartment</mat-icon>
+    </mat-form-field>
+  </mat-card>
+
+  <div class="floor-content">
+    <div *ngIf="loading" class="loading-container">
+      <mat-spinner diameter="40"></mat-spinner>
+    </div>
+
+    <div *ngIf="!loading && selectedFloor()" class="rooms-grid">
+      <mat-card *ngFor="let room of selectedFloor()?.rooms" class="room-card">
+        <mat-card-content>
+          <div class="room-header">
+            <div class="room-info">
+              <h3>{{room.name}}</h3>
+              <p class="room-number">Room {{room.roomNumber}}</p>
+            </div>
+            <button mat-raised-button color="primary" 
+                    (click)="printRoomLabel(room)"
+                    [disabled]="isRoomEmpty(room)">
+              <mat-icon>print</mat-icon>
+              Print label
+            </button>
+          </div>
+          <div class="employees-list">
+            <div *ngFor="let seat of room.seats" class="seat-info">
+              <div class="seat-number">{{seat.seatNumber}}</div>
+              <div [class.occupied]="seat.occupied" class="employee-info">
+                <span *ngIf="seat.employee" 
+                      class="employee-name"
+                      tabindex="0"
+                      role="button"
+                      [attr.aria-label]="'Manage seat assignment for ' + seat.employee.fullName"
+                      (click)="onEmployeeClick($event, seat.employee.id, seat.employee.fullName, seat.id)"
+                      (keydown.enter)="onEmployeeClick($event, seat.employee.id, seat.employee.fullName, seat.id)"
+                      (keydown.space)="onEmployeeClick($event, seat.employee.id, seat.employee.fullName, seat.id); $event.preventDefault()">
+                  {{seat.employee.fullName}} - {{seat.employee.occupation}}
+                </span>
+                <span *ngIf="!seat.employee" class="vacant">
+                  Vacant
+                </span>
+              </div>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  </div>
+</div> 

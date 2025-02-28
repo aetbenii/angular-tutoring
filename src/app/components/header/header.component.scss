@@ -1,0 +1,38 @@
+:host {
+  display: block;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-right: 3rem;
+
+  .brand-text {
+    font-size: 1.2rem;
+    font-weight: 500;
+  }
+}
+
+mat-toolbar {
+  padding: 0 1rem;
+}
+
+nav {
+  background-color: white;
+  padding: 0 1rem;
+
+  ::ng-deep {
+    .mdc-tab-indicator__content--underline {
+      border-color: #1976d2;
+    }
+
+    .mat-mdc-tab-link {
+      &.mdc-tab--active {
+        color: #1976d2;
+      }
+    }
+  }
+}
+
+

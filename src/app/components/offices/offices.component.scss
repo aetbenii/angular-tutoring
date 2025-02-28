@@ -1,0 +1,64 @@
+.offices-container {
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.floor-selector {
+  padding: 1.5rem;
+
+  .reservation-context {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background-color: #e3f2fd;
+    border-radius: 4px;
+    color: #1976d2;
+
+    mat-icon {
+      color: #1976d2;
+    }
+
+    span {
+      font-weight: 500;
+    }
+  }
+
+  mat-form-field {
+    width: 100%;
+    max-width: 300px;
+  }
+}
+
+.floor-content {
+  position: relative;
+  min-height: 200px;
+}
+
+.loading-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background-color: #fdecea;
+  border-radius: 4px;
+  color: #d32f2f;
+
+  mat-icon {
+    color: #d32f2f;
+  }
+
+  p {
+    margin: 0;
+  }
+}
