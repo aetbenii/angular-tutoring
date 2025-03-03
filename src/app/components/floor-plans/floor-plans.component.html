@@ -26,9 +26,7 @@
               <h3>{{room.name}}</h3>
               <p class="room-number">Room {{room.roomNumber}}</p>
             </div>
-            <button mat-raised-button color="primary" 
-                    (click)="printRoomLabel(room)"
-                    [disabled]="isRoomEmpty(room)">
+            <button mat-raised-button color="primary" (click)="printRoomLabel(room)" [disabled]="isRoomEmpty(room)">
               <mat-icon>print</mat-icon>
               Print label
             </button>
@@ -37,17 +35,16 @@
             <div *ngFor="let seat of room.seats" class="seat-info">
               <div class="seat-number">{{seat.seatNumber}}</div>
               <div [class.occupied]="seat.occupied" class="employee-info">
-                <span *ngIf="seat.employee" 
-                      class="employee-name"
-                      tabindex="0"
-                      role="button"
-                      [attr.aria-label]="'Manage seat assignment for ' + seat.employee.fullName"
-                      (click)="onEmployeeClick($event, seat.employee.id, seat.employee.fullName, seat.id)"
-                      (keydown.enter)="onEmployeeClick($event, seat.employee.id, seat.employee.fullName, seat.id)"
-                      (keydown.space)="onEmployeeClick($event, seat.employee.id, seat.employee.fullName, seat.id); $event.preventDefault()">
-                  {{seat.employee.fullName}} - {{seat.employee.occupation}}
-                </span>
-                <span *ngIf="!seat.employee" class="vacant">
+                <ng-container *ngIf="seat.employees">
+                  <span *ngFor="let employee of seat.employees" class="employee-name" tabindex="0" role="button"
+                    [attr.aria-label]="'Manage seat assignment for ' + employee.fullName"
+                    (click)="onEmployeeClick($event, employee.id, employee.fullName, seat.id)"
+                    (keydown.enter)="onEmployeeClick($event, employee.id, employee.fullName, seat.id)"
+                    (keydown.space)="onEmployeeClick($event, employee.id, employee.fullName, seat.id); $event.preventDefault()">
+                    {{employee.fullName}} - {{employee.occupation}}
+                  </span>
+                </ng-container>
+                <span *ngIf="!seat.employees" class="vacant">
                   Vacant
                 </span>
               </div>
@@ -57,4 +54,4 @@
       </mat-card>
     </div>
   </div>
-</div> 
+</div>
