@@ -14,11 +14,11 @@ export interface Seat {
   };
   seatNumber: string;
   createdAt: number[];
-  employee?: {
+  employees?: {
     id: number;
     fullName: string;
     occupation: string;
     createdAt: number[];
-  };
+  }[];
   occupied: boolean;
 }

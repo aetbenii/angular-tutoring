@@ -124,7 +124,7 @@ export class FloorPlansComponent implements OnInit {
     // Add room header
     doc.setFontSize(20);
     doc.text(`${room.name} (Room ${room.roomNumber})`, pageWidth / 2, yPosition, { align: 'center' });
-    
+
     // Add floor name
     yPosition += 10;
     doc.setFontSize(14);
@@ -136,12 +136,14 @@ export class FloorPlansComponent implements OnInit {
     // Add employees list
     yPosition += 20;
     doc.setFontSize(12);
-    
+
     room.seats.forEach(seat => {
-      if (seat.employee) {
-        const text = `${seat.seatNumber}: ${seat.employee.fullName} - ${seat.employee.occupation}`;
-        doc.text(text, 20, yPosition);
-        yPosition += 10;
+      if (seat.employees) {
+        seat.employees.forEach(employee => {
+          const text = `${seat.seatNumber}: ${employee.fullName} - ${employee.occupation}`;
+          doc.text(text, 20, yPosition);
+          yPosition += 10;
+        })
       }
     });
 
