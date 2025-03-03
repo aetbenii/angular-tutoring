@@ -50,7 +50,7 @@ template: `
           <span>Seat: {{seat.seatNumber}}</span>
         </div>
       </div>
-      <ng-container *ngIf="seat.employees" class="employee-info">
+      <ng-container *ngIf="(seat?.employees ?? []).length > 0" class="employee-info">
         <h3>Assigned Employee</h3>
         <div *ngFor="let employee of seat.employees">
           <div class="info-row">
@@ -63,7 +63,7 @@ template: `
           </div>
         </div>
       </ng-container>
-      <div *ngIf="!seat.employees" class="no-employee">
+      <div *ngIf="seat?.employees?.length === 0" class="no-employee">
         <mat-icon>person_off</mat-icon>
         <p>No employee assigned to this seat</p>
       </div>
