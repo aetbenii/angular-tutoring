@@ -41,10 +41,11 @@
                     (click)="onEmployeeClick($event, employee.id, employee.fullName, seat.id)"
                     (keydown.enter)="onEmployeeClick($event, employee.id, employee.fullName, seat.id)"
                     (keydown.space)="onEmployeeClick($event, employee.id, employee.fullName, seat.id); $event.preventDefault()">
-                    {{employee.fullName}} - {{employee.occupation}}
+                    {{employee.fullName}}
+                    <br>
                   </span>
                 </ng-container>
-                <span *ngIf="!seat.employees" class="vacant">
+                <span *ngIf="seat?.employees?.length === 0" class="vacant">
                   Vacant
                 </span>
               </div>
