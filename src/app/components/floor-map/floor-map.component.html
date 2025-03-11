@@ -1,5 +1,5 @@
-<div class="floor-plans-container">
-  <h1>Office assignments</h1>
+<div class="floor-map-container">
+  <h1>Floor Maps</h1>
 
   <mat-card class="floor-selector">
     <mat-form-field>
@@ -12,12 +12,7 @@
       <mat-icon matSuffix>apartment</mat-icon>
     </mat-form-field>
   </mat-card>
-
-  <div class="floor-content">
-    <div *ngIf="loading" class="loading-container">
-      <mat-spinner diameter="40"></mat-spinner>
-    </div>
-
+  <div class="canvas-container" #canvasContainer>
     
   </div>
 </div>

@@ -36,6 +36,7 @@
     "@angular/cli": "^19.1.4",
     "@angular/compiler-cli": "^19.1.0",
     "@playwright/test": "^1.50.1",
+    "@types/d3": "^7.4.3",
     "@types/jasmine": "~5.1.0",
     "angular-eslint": "19.0.2",
     "eslint": "^9.16.0",
