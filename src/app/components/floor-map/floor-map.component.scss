@@ -1,0 +1,147 @@
+.floor-plans-container {
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.floor-selector {
+  padding: 1.5rem;
+
+  mat-form-field {
+    width: 100%;
+    max-width: 300px;
+  }
+}
+
+.floor-content {
+  position: relative;
+  min-height: 200px;
+}
+
+.floor-svg{
+  width: 80%;
+  height: 600px;
+  overflow: hidden;
+}
+
+.loading-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background-color: #fdecea;
+  border-radius: 4px;
+  color: #d32f2f;
+
+  mat-icon {
+    color: #d32f2f;
+  }
+
+  p {
+    margin: 0;
+  }
+}
+
+.rooms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.room-card {
+  .room-header {
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+
+    .room-info {
+      h3 {
+        margin: 0;
+        color: rgba(0, 0, 0, 0.87);
+      }
+
+      .room-number {
+        margin: 0.25rem 0 0 0;
+        color: #1976d2;
+        font-weight: 500;
+      }
+    }
+
+    button {
+      mat-icon {
+        margin-right: 8px;
+      }
+    }
+  }
+
+  .employees-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+
+    .seat-info {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.5rem;
+      background: #f5f5f5;
+      border-radius: 4px;
+
+      .seat-number {
+        min-width: 60px;
+        font-weight: 500;
+        color: #1976d2;
+      }
+
+      .employee-info {
+        flex: 1;
+
+        &.occupied {
+          color: #1976d2;
+          font-weight: 500;
+        }
+
+        .employee-name {
+          cursor: pointer;
+          outline: none;
+          color: #1976d2;
+          text-decoration: underline;
+
+          &:focus {
+            outline: 2px solid #1976d2;
+            outline-offset: 2px;
+            border-radius: 2px;
+          }
+
+          &:focus:not(:focus-visible) {
+            outline: none;
+          }
+
+          &:focus-visible {
+            outline: 2px solid #1976d2;
+            outline-offset: 2px;
+            border-radius: 2px;
+          }
+
+          &:hover {
+            color: #1565c0;
+          }
+        }
+
+        .vacant {
+          color: rgba(0, 0, 0, 0.5);
+          font-style: italic;
+        }
+      }
+    }
+  }
+}
