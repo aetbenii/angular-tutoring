@@ -26,7 +26,14 @@
               <h3>{{room.name}}</h3>
               <p class="room-number">Room {{room.roomNumber}}</p>
             </div>
-            <button mat-raised-button color="primary" (click)="printRoomLabel(room)" [disabled]="isRoomEmpty(room)">
+            <button mat-raised-button color="primary" 
+            [routerLink]="['/edit-map', selectedFloor()?.id, room.id]">
+              <mat-icon>edit</mat-icon>
+              Edit Room
+            </button>
+            <button mat-raised-button color="primary" 
+            (click)="printRoomLabel(room)" 
+            [disabled]="isRoomEmpty(room)">
               <mat-icon>print</mat-icon>
               Print label
             </button>
