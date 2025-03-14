@@ -87,43 +87,6 @@ export class EditMapComponent {
         .attr('class', 'room-group')
         .attr('transform', 'translate(100,100)'); // Startposition
 
-        
-        const resizer = room.append('rect')
-    .attr('x', 150)  // Position an der unteren rechten Ecke des großen Rechtecks
-    .attr('y', 200)
-    .attr('width', 10)  // Größe des Resizers
-    .attr('height', 10)
-    .attr('fill', 'blue')  // Farbe des Resizers
-    .style('cursor', 's-resize');  // Cursor anzeigen, dass der Bereich vergrößert/verkleinert werden kann
-
-// Resizing-Funktion hinzufügen
-resizer.call(d3.drag()
-    .on('start', function (event) {
-        // Offset für das Dragging berechnen
-        const rectElement = d3.select(largeRect);
-        console.log(largeRect.attr('x'));
-        event.subject.offsetX = event.x - parseFloat(rectElement.attr('x'));
-        event.subject.offsetY = event.y - parseFloat(rectElement.attr('y'));
-    })
-    .on('drag', function (event) {
-        // Berechne die neue Breite und Höhe basierend auf der Mausbewegung
-        const rectElement = d3.select(largeRect);
-        
-        let newWidth = event.x - parseFloat(rectElement.attr('x'));
-        let newHeight = event.y - parseFloat(rectElement.attr('y'));
-        
-        // Verhindere, dass die Größe negativ wird
-        newWidth = Math.max(newWidth, 10);  // Mindestbreite
-        newHeight = Math.max(newHeight, 10);  // Mindesthöhe
-        
-        // Setze die neue Größe des Rechtecks
-        rectElement.attr('width', newWidth).attr('height', newHeight);
-
-        // Positioniere den Resizer neu (immer an der unteren rechten Ecke)
-        resizer.attr('x', newWidth).attr('y', newHeight);
-    })
-);
-
     // Großes Rechteck (Hintergrund)
     const largeRect = room.append('rect')
         .attr('x', 0)
@@ -133,8 +96,8 @@ resizer.call(d3.drag()
         .attr('fill', 'rgba(223, 223, 223, 0.57)')
         .attr('stroke', 'green')
         .attr('stroke-width', 2);
-    
-        room.call(d3.drag()
+
+        room.call(d3.drag() 
         .on('start', function (event) {
             const transform = d3.select(this).attr('transform');
             const translate = transform.match(/translate\(([^,]+),([^)]+)\)/);
@@ -150,8 +113,48 @@ resizer.call(d3.drag()
         })
     );
 
+    const handle = room.append('circle')
+    .attr('cx', 300)  // Mittelpunkt des Kreises (x = 150 + radius)
+    .attr('cy', 200)  // Mittelpunkt des Kreises (y = 200 + radius)
+    .attr('r', 5)  // Radius des Kreises (statt width/height)
+    .attr('fill', 'blue')  // Farbe des Resizers
+    .style('cursor', 'pointer'); // Cursor anzeigen, dass der Bereich vergrößert/verkleinert werden kann
+
+// Resizing-Funktion hinzufügen
+    handle.call(d3.drag()
+    .on('start', function (event) {
+        // Offset für das Dragging berechnen
+        const rectElement = largeRect;
+        event.subject.offsetX = event.x - parseFloat(rectElement.attr('x'));
+        event.subject.offsetY = event.y - parseFloat(rectElement.attr('y'));
+    })
+    .on('drag', function (event) {
+        // Berechne die neue Breite und Höhe basierend auf der Mausbewegung
+        const rectElement = largeRect;
+        
+        let newWidth = event.x - parseFloat(rectElement.attr('x'));
+        let newHeight = event.y - parseFloat(rectElement.attr('y'));
+        
+        // Verhindere, dass die Größe negativ wird
+        newWidth = Math.max(newWidth, 10);  // Mindestbreite
+        newHeight = Math.max(newHeight, 10);  // Mindesthöhe
+        
+        // Setze die neue Größe des Rechtecks
+        rectElement.attr('width', newWidth).attr('height', newHeight);
+
+        // Positioniere den Resizer neu (immer an der unteren rechten Ecke)
+        handle.attr('cx', newWidth).attr('cy', newHeight);
+    })
+    .on('end', (event) => {
+      console.log(largeRect.attr('width'));
+      console.log(largeRect.attr('height'));
+      console.log(room.attr('transform'))
+    })
+);
+
     // Kleines Rechteck hinzufügen
     function createSmallRect(x: number, y: number) {
+      let angle = 0;
         room.append('rect')
             .attr('x', x)
             .attr('y', y)
@@ -184,13 +187,24 @@ resizer.call(d3.drag()
     
                     rectElement.attr('x', newX).attr('y', newY);
                 })
-            );
+            )
+            // .on("click", (event: { target: SVGRectElement; }) => {
+            //   angle+=45;
+            //   const bbox = (event.target as SVGRectElement).getBBox();
+            //   const cx = bbox.x + bbox.width/2;
+            //   const cy = bbox.y + bbox.height/2;
+
+            //   d3.select(event.target)
+            //     .attr("transform", `rotate(${angle}, ${cx}, ${cy})`)
+            // })
+            ;
     }
     
     // Drei kleine Rechtecke erstellen
     createSmallRect.call(this, 20, 20);
     createSmallRect.call(this, 100, 50);
     createSmallRect.call(this, 200, 100);
+
 
 
       // Load the background SVG using D3's XML loader
