@@ -14,6 +14,11 @@ export interface Seat {
   };
   seatNumber: string;
   createdAt: number[];
+  x: number;           
+  y: number;          
+  width: number;       
+  height: number;      
+  rotation: number; 
   employees?: {
     id: number;
     fullName: string;
