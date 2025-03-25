@@ -77,6 +77,8 @@ export class FloorService {
     )
     .subscribe({
       next: (floors) => {
+        floors.sort((a, b) => a.id - b.id);
+        this.floorsSignal.set(floors);
         console.log('Received floors data:', floors);
         this.floorsSignal.set(floors);
       },
@@ -92,36 +94,39 @@ export class FloorService {
    * @param floorNumber The number of the floor to load
    * Updates the selectedFloorSignal with the retrieved floor data
    */
-  loadFloor(floorNumber: number) {
-    this.http.get<Floor>(`${this.apiUrl}/floors/${floorNumber}`, {
-      headers: {
-        'Accept': 'application/json'
-      },
-      withCredentials: true
-    })
-    .pipe(
-      retry(1),
-      catchError(this.handleError)
-    )
-    .subscribe({
-      next: (floor) => {
-        console.log('Received floor data:', floor);
-        // Sort rooms by roomNumber before setting the floor data
-        const sortedFloor = {
-          ...floor,
-          rooms: [...floor.rooms].sort((a, b) => {
-            // Convert room numbers to numbers for proper numeric sorting
-            const aNum = parseInt(a.roomNumber);
-            const bNum = parseInt(b.roomNumber);
-            return aNum - bNum;
-          })
-        };
-        this.selectedFloorSignal.set(sortedFloor);
-      },
-      error: (error) => {
-        console.error('Error loading floor:', error);
-        this.selectedFloorSignal.set(null);
-      }
+  loadFloor(floorNumber: number): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.http.get<Floor>(`${this.apiUrl}/floors/${floorNumber}`, {
+        headers: {
+          'Accept': 'application/json'
+        },
+        withCredentials: true
+      })
+      .pipe(
+        retry(1),
+        catchError(this.handleError)
+      )
+      .subscribe({
+        next: (floor) => {
+          console.log('Received floor data:', floor);
+          // Sort rooms by roomNumber before setting the floor data
+          const sortedFloor = {
+            ...floor,
+            rooms: [...floor.rooms].sort((a, b) => {
+              const aNum = parseInt(a.roomNumber);
+              const bNum = parseInt(b.roomNumber);
+              return aNum - bNum;
+            })
+          };
+          this.selectedFloorSignal.set(sortedFloor);
+          resolve();  // Aufruf von resolve, wenn das Laden erfolgreich war
+        },
+        error: (error) => {
+          console.error('Error loading floor:', error);
+          this.selectedFloorSignal.set(null);
+          reject(error);  // Fehlerbehandlung mit reject
+        }
+      });
     });
   }
 

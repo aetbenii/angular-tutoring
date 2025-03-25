@@ -62,7 +62,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
     ngAfterViewInit(): void {}
 
     onSaveClick(): void{
-      const transform = this.roomGroup.attr('transform');
+      let transform = this.roomGroup.attr('transform');
       const translate = transform.match(/translate\(([^,]+),([^)]+)\)/);
       const roomData = {
         x: parseFloat(translate[1]),
@@ -171,66 +171,73 @@ export class EditMapComponent implements OnInit, AfterViewInit{
         // Positioniere den Resizer neu (immer an der unteren rechten Ecke)
         handle.attr('cx', newWidth).attr('cy', newHeight);
     })
-    .on('end', (event) => {
-      console.log(this.room.attr('width'));
-      console.log(this.room.attr('height'));
-      console.log(this.roomGroup.attr('transform'))
-    })
 );
 
     // Kleines Rechteck hinzufügen
     function createSmallRect(seat: Seat, room: any, roomGroup: any, seats: any) {
-        const rect = roomGroup.append('rect')
-            .attr('id', seat.id)
-            .attr('x', seat.x)
-            .attr('y', seat.y)
-            .attr('width', seat.width)
-            .attr('height', seat.height)
-            .attr('fill', 'red')
-            .attr('stroke', 'black')
-            .attr('stroke-width', 2)
-            .call(d3.drag()
-                .on('start', function (event) {
-                    event.subject.offsetX = event.x - parseFloat(d3.select(this).attr('x'));
-                    event.subject.offsetY = event.y - parseFloat(d3.select(this).attr('y'));
-                })
-                .on('drag', function (event) {
-                    const rectElement = d3.select(this);
-    
-                    // Begrenzungen aus dem großen Rechteck holen
-                    const largeX = 0;
-                    const largeY = 0;
-                    const largeWidth = parseFloat(room.attr('width'));
-                    const largeHeight = parseFloat(room.attr('height'));
-    
-                    // Neue Position berechnen
-                    let newX = event.x - event.subject.offsetX;
-                    let newY = event.y - event.subject.offsetY;
-    
-                    // Begrenzung einhalten
-                    newX = Math.max(largeX, Math.min(newX, largeX + largeWidth - seat.width));
-                    newY = Math.max(largeY, Math.min(newY, largeY + largeHeight - seat.height));
-    
-                    rectElement.attr('x', newX).attr('y', newY);
-                })
+      const rect = roomGroup.append('rect')
+      .attr('id', seat.id)
+      .attr('x', seat.x)
+      .attr('y', seat.y)
+      .attr('width', seat.width)
+      .attr('height', seat.height)
+      .attr('fill', 'rgb(63, 81, 181)')
+      .attr('stroke', 'black')
+      .attr('stroke-width', 2)
+      .call(d3.drag()
+          .on('start', function (event) {
+              event.subject.offsetX = event.x - parseFloat(d3.select(this).attr('x'));
+              event.subject.offsetY = event.y - parseFloat(d3.select(this).attr('y'));
+          })
+          .on('drag', function (event) {
+              const rectElement = d3.select(this);
 
-                
-            ).attr('rotation', 0)
-            // .on("click", (event: { target: SVGRectElement; }) => {
-            //   angle+=45;
-            //   const bbox = (event.target as SVGRectElement).getBBox();
-            //   const cx = bbox.x + bbox.width/2;
-            //   const cy = bbox.y + bbox.height/2;
+              // Begrenzungen aus dem großen Rechteck holen
+              const largeX = 0;
+              const largeY = 0;
+              const largeWidth = parseFloat(room.attr('width'));
+              const largeHeight = parseFloat(room.attr('height'));
 
-            //   d3.select(event.target)
-            //     .attr("transform", `rotate(${angle}, ${cx}, ${cy})`)
-            // })
-            
-            ;
-            seats.add(rect);
+              // Neue Position berechnen
+              let newX = event.x - event.subject.offsetX;
+              let newY = event.y - event.subject.offsetY;
+
+              // Begrenzung einhalten
+              newX = Math.max(largeX, Math.min(newX, largeX + largeWidth - seat.width));
+              newY = Math.max(largeY, Math.min(newY, largeY + largeHeight - seat.height));
+
+              text.attr('x', newX + seat.width / 2)
+                  .attr('y', newY + seat.height / 2);
+
+              rectElement.attr('x', newX).attr('y', newY);
+          })
+
+          
+      ).attr('rotation', 0)
+      // .on("click", (event: { target: SVGRectElement; }) => {
+      //   angle+=45;
+      //   const bbox = (event.target as SVGRectElement).getBBox();
+      //   const cx = bbox.x + bbox.width/2;
+      //   const cy = bbox.y + bbox.height/2;
+
+      //   d3.select(event.target)
+      //     .attr("transform", `rotate(${angle}, ${cx}, ${cy})`)
+      // })
+      
+      ;
+
+      const text = roomGroup.append('text')
+      .attr('x', seat.x + seat.width / 2)  // Text in der Mitte des Rechtecks positionieren
+      .attr('y', seat.y + seat.height / 2)
+      .attr('dy', '.35em')  // Vertikale Ausrichtung des Textes
+      .attr('text-anchor', 'middle')  // Horizontale Ausrichtung des Textes
+      .attr('fill', 'white')  // Textfarbe
+      .text(seat.seatNumber);
+      seats.add(rect);
     }
-    
+    console.log(this.selectedRoom());
     this.selectedRoom()?.seats.forEach((seat, index) => {
+      console.log(seat.id);
       createSmallRect.call(this,seat, this.room, this.roomGroup, this.seats);
     });
 
