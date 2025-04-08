@@ -7,10 +7,11 @@ import { Room } from '../../interfaces/room.interface';
 import { RoomService } from '../../services/room.service';
 import { HttpClient } from '@angular/common/http';
 import { Seat } from '../../interfaces/seat.interface';
+import { MatButtonModule } from '@angular/material/button';
 
 @Component({
   selector: 'app-edit-map',
-  imports: [],
+  imports: [MatButtonModule],
   templateUrl: './edit-map.component.html',
   styleUrl: './edit-map.component.scss'
 })
