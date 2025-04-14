@@ -21,5 +21,9 @@ export const routes: Routes = [
   {
     path: 'floor-map',
     loadComponent: () => import('./components/floor-map/floor-map.component').then(m => m.FloorMapComponent)
+  },
+  {
+    path: 'edit-map/:floorId/:roomId',
+    loadComponent: () => import('./components/edit-map/edit-map.component').then(m => m.EditMapComponent)
   }
 ];

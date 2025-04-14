@@ -16,6 +16,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Floor } from '../../interfaces/floor.interface';
 import { Room } from '../../interfaces/room.interface';
 import { Signal } from '@angular/core';
+import { RouterModule } from '@angular/router';
 
 @Component({
   selector: 'app-floor-plans',
@@ -30,7 +31,8 @@ import { Signal } from '@angular/core';
     ReactiveFormsModule,
     MatButtonModule,
     MatDialogModule,
-    MatSnackBarModule
+    MatSnackBarModule,
+    RouterModule
   ],
   templateUrl: './floor-plans.component.html',
   styleUrls: ['./floor-plans.component.scss']

@@ -17,6 +17,9 @@ import { Floor } from '../../interfaces/floor.interface';
 import { Room } from '../../interfaces/room.interface';
 import { Signal } from '@angular/core';
 import * as d3 from 'd3';
+import { RoomService } from '../../services/room.service';
+import { Seat } from '../../interfaces/seat.interface';
+import { SeatInfoDialogComponent } from '../offices/seat-info-dialog/seat-info-dialog.component';
 
 @Component({
   selector: 'app-floor-map',
@@ -51,6 +54,7 @@ export class FloorMapComponent implements OnInit {
 
   selectedFloorControl = new FormControl<number | null>(null);
   floors = this.floorService.floors;
+  selectedFloor = this.floorService.selectedFloor;
 
   constructor() {}
 
@@ -58,7 +62,19 @@ export class FloorMapComponent implements OnInit {
     // Handle floor selection changes
     this.selectedFloorControl.valueChanges.subscribe(floorNumber => {
       if (floorNumber !== null) {
-        this.loadFloorPlan(floorNumber);
+        this.loading.set(true);
+
+        this.floorService.loadFloor(floorNumber).then(() => {
+          this.loadFloorPlan(floorNumber);
+        
+          // Setze den Loading-Zustand auf false, wenn der Ladevorgang abgeschlossen ist
+          this.loading.set(false);
+        }).catch(error => {
+          // Im Falle eines Fehlers den Loading-Zustand auf false setzen
+          this.loading.set(false);
+          this.error.set('Fehler beim Laden des Floors');
+          console.error('Error loading floor:', error);
+        });
       }
     });
 
@@ -133,6 +149,7 @@ export class FloorMapComponent implements OnInit {
       
       // Configure D3 zoom behavior for pan and zoom functionality
       this.configureZoom(backgroundGroup);
+      this.drawRooms(this.g);
       
     }).catch(error => {
       this.loading.set(false);
@@ -158,4 +175,74 @@ export class FloorMapComponent implements OnInit {
     const initialTransform = d3.zoomIdentity.translate(100, 100).scale(0.8);
     this.svg.call(this.zoom.transform, initialTransform);
   }
+
+  private drawRooms(g: any):void {
+    this.selectedFloor()?.rooms.forEach(room => {
+      const roomGroup = g.append('g')
+      .attr('class', 'room-group');
+      if(room.x !== 0 && room.y !== 0){
+        this.drawRoom(roomGroup, room);
+      }
+    })
+    
+  }
+
+  private drawRoom(roomGroup: any, room: Room){
+    roomGroup.attr('transform', `translate(${room.x}, ${room.y})`);
+    const rect = roomGroup.append('rect')
+      .attr('width', room.width)
+      .attr('height', room.height)
+      .attr('fill', 'rgba(223, 223, 223, 0.57)')
+      .attr('stroke', 'black')
+      .attr('stroke-width', 2)
+      //.append('title').text(`${room.roomNumber}`)
+      ;
+
+    const text = roomGroup.append('text')
+    .attr('x', room.width/2)
+    .attr('y', room.height/2)
+    .attr('dy', '.35em')
+    .attr('text-anchor', 'middle')
+    .attr('fill', 'black')
+    .text(room.name)
+    ;
+
+    room.seats.forEach((seat) => {
+      this.drawSeat(roomGroup, seat);
+    })
+  }
+
+  private drawSeat(roomGroup: any, seat: Seat){
+    const group = roomGroup.append('g')
+    .attr('class', 'room-group');
+
+    const rect = group.append('rect')
+      .attr('x', seat.x)
+      .attr('y', seat.y)
+      .attr('width', seat.width)
+      .attr('height', seat.height)
+      .attr('stroke', 'black')
+      .attr('stroke-width', 2);  
+
+      if(seat.employees && seat.employees.length > 0){
+        rect.attr('fill', 'rgb(219, 18, 18)');
+        rect.append('title')
+        .text(seat.employees.map(employee => employee.fullName).join(', '));
+
+      } else {
+        rect.attr('fill', 'rgb(63, 81, 181)');
+        rect.append('title').text('Empty');
+      }
+
+      const text = roomGroup.append('text')
+      .attr('x', seat.x + seat.width/2)
+      .attr('y', seat.y + seat.height/2)
+      .attr('text-anchor', 'middle')
+      .attr('fill', 'white')
+      .text(seat.seatNumber)
+      ;
+  }
+
 }
+
+
