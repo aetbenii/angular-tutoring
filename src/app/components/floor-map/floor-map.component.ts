@@ -239,7 +239,10 @@ export class FloorMapComponent implements OnInit {
       .attr('y', seat.y + seat.height/2)
       .attr('text-anchor', 'middle')
       .attr('fill', 'white')
-      .text(seat.seatNumber)
+      .attr('alignment-baseline', 'middle') 
+      .style('writing-mode', 'sideways-lr')
+      .style('pointer-events', 'none')
+      .text(seat.employees?.map(employee => employee.fullName).join(', ') || 'empty')
       ;
   }
 

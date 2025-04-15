@@ -174,66 +174,138 @@ export class EditMapComponent implements OnInit, AfterViewInit{
     })
 );
 
+
     // Kleines Rechteck hinzufügen
     function createSmallRect(seat: Seat, room: any, roomGroup: any, seats: any) {
       const rect = roomGroup.append('rect')
       .attr('id', seat.id)
-      .attr('x', seat.x)
-      .attr('y', seat.y)
+      .attr('transform', `translate(${seat.x}, ${seat.y})`)
       .attr('width', seat.width)
       .attr('height', seat.height)
       .attr('fill', 'rgb(63, 81, 181)')
       .attr('stroke', 'black')
       .attr('stroke-width', 2)
+      .attr('rotation', 0)
       .call(d3.drag()
-          .on('start', function (event) {
-              event.subject.offsetX = event.x - parseFloat(d3.select(this).attr('x'));
-              event.subject.offsetY = event.y - parseFloat(d3.select(this).attr('y'));
-          })
-          .on('drag', function (event) {
-              const rectElement = d3.select(this);
-
-              // Begrenzungen aus dem großen Rechteck holen
-              const largeX = 0;
-              const largeY = 0;
-              const largeWidth = parseFloat(room.attr('width'));
-              const largeHeight = parseFloat(room.attr('height'));
-
-              // Neue Position berechnen
-              let newX = event.x - event.subject.offsetX;
-              let newY = event.y - event.subject.offsetY;
-
-              // Begrenzung einhalten
-              newX = Math.max(largeX, Math.min(newX, largeX + largeWidth - seat.width));
-              newY = Math.max(largeY, Math.min(newY, largeY + largeHeight - seat.height));
-
-              text.attr('x', newX + seat.width / 2)
-                  .attr('y', newY + seat.height / 2);
-
-              rectElement.attr('x', newX).attr('y', newY);
-          })
-
+        .on('start', function (event) {
+          const rectElement = d3.select(this);
+          const transform = rectElement.attr('transform');
+          const translate = transform.match(/translate\(([^,]+),([^)]+)\)/);
+            if (translate) {
+              const currentX = parseFloat(translate[1]);
+              const currentY = parseFloat(translate[2]);
+              
+              event.subject.offsetX = event.x - currentX;
+              event.subject.offsetY = event.y - currentY;
+            }
+        })
+        .on('drag', function (event) {
+          const rectElement = d3.select(this);
+          const currentRotation = parseInt(rectElement.attr('rotation') || '0');
           
-      ).attr('rotation', 0)
-      // .on("click", (event: { target: SVGRectElement; }) => {
-      //   angle+=45;
-      //   const bbox = (event.target as SVGRectElement).getBBox();
-      //   const cx = bbox.x + bbox.width/2;
-      //   const cy = bbox.y + bbox.height/2;
+          // Begrenzungen aus dem großen Rechteck holen
+          const largeX = 0;
+          const largeY = 0;
+          const largeWidth = parseFloat(room.attr('width'));
+          const largeHeight = parseFloat(room.attr('height'));
+    
+          // Neue Position berechnen
+          let newX = event.x - event.subject.offsetX;
+          let newY = event.y - event.subject.offsetY;
+    
+          // Begrenzung einhalten
+          //left
+          newX = Math.max(currentRotation === 0 ? 
+            largeX : 
+            largeX + seat.width / 2, 
+          //right  
+          Math.min(newX, currentRotation === 0 ? 
+            largeX + largeWidth - seat.width : 
+            largeX + largeWidth - 1.5 * seat.width
+          ));
+          //top
+          newY = Math.max(currentRotation === 0 ?
+            largeY :
+            largeY - seat.width / 2,
+          Math.min(newY, currentRotation === 0 ? 
+            largeY + largeHeight - seat.height : 
+            largeY + largeHeight - 1.5 * seat.width
+          ));
 
-      //   d3.select(event.target)
-      //     .attr("transform", `rotate(${angle}, ${cx}, ${cy})`)
-      // })
-      
+          const centerX = seat.width / 2;
+          const centerY = seat.height / 2;
+          
+          rectElement.attr('transform', `translate(${newX}, ${newY}) rotate(${currentRotation}, ${centerX}, ${centerY})`);
+    
+          // Text mit transform positionieren statt mit x/y
+          const textRotation = text.attr('rotation');
+          text.attr('transform', `translate(${ newX + seat.width / 2 }, ${ newY + seat.height / 2}) rotate(${textRotation})`);
+          //rectElement.attr('x', newX).attr('y', newY);
+        })
+      )
+      .on('click', function(this:any) {
+        const rectElement = d3.select(this);
+        const transform = d3.select(this).attr('transform');
+        const translate = transform.match(/translate\(([^,]+),([^)]+)\)/);
+        if (translate) {
+          const bbox = this.getBBox();
+          const centerX = bbox.x + bbox.width/2;
+          const centerY = bbox.y + bbox.height/2;
+
+          const x = parseFloat(translate[1]);
+          const y = parseFloat(translate[2]);
+
+          let newRotation = parseInt(rectElement.attr('rotation'))+90;
+          if(newRotation == 180) newRotation = 0;
+          rectElement.attr("transform", `translate(${x}, ${y}) rotate(${newRotation}, ${centerX}, ${centerY})`);
+          rectElement.attr('rotation', newRotation);
+          text.attr("transform", `translate(${x+25} , ${y+50}) rotate(${newRotation})`);
+          text.attr('rotation', newRotation);
+        }
+      })
       ;
+    
+    // Text-Element mit transform erstellen statt mit x/y
+    console.log(seat.x, seat.y);
+    const text = roomGroup.append('text')
+      .attr('transform', `translate(${seat.x + seat.width / 2}, ${seat.y + seat.height / 2})`)
+      .attr('text-anchor', 'middle')
+      .attr('alignment-baseline', 'middle')
+      .attr('rotation', 0)
+      .style('writing-mode', 'sideways-lr')
+      .attr('fill', 'white')
+      .style('font-size', '12px')
+      .style('pointer-events', 'none');
+    
+    if (seat.employees && seat.employees.length > 1) {
+      // Erstes tspan ohne eigene Positionierung
+      text.append('tspan')
+        .text(seat.employees[0].fullName)
+        .attr('x', '-0.8em');
+      // Weitere tspans mit vertikalem Abstand
+      // Da wir text-anchor="middle" verwenden, müssen wir x="0" setzen,
+      // damit die Zeilen zentriert bleiben
+      for (let i = 1; i < seat.employees.length; i++) {
+        text.append('tspan')
+          .attr('y', 0) // Wichtig: x=0 bedeutet zentriert relativ zum transformierten text-Element
+          .attr('dx', '1.2em') // Vertikaler Abstand zum vorherigen tspan
+          .text(seat.employees[i].fullName);
+      }
+    }  else {
+      // Prüfe explizit, ob genau ein Mitarbeiter vorhanden ist
+      if (seat.employees && seat.employees.length === 1) {
+        text.append('tspan')
+          .text(seat.employees[0].fullName); // Sicher, da wir wissen, dass es existiert
+      } else {
+        // Fall für 0 Mitarbeiter oder undefined Array
+        text.append('tspan')
+          .text("empty");
+      }
+    }
+    
 
-      const text = roomGroup.append('text')
-      .attr('x', seat.x + seat.width / 2)  // Text in der Mitte des Rechtecks positionieren
-      .attr('y', seat.y + seat.height / 2)
-      .attr('dy', '.35em')  // Vertikale Ausrichtung des Textes
-      .attr('text-anchor', 'middle')  // Horizontale Ausrichtung des Textes
-      .attr('fill', 'white')  // Textfarbe
-      .text(seat.seatNumber);
+
+
       seats.add(rect);
     }
     console.log(this.selectedRoom());
