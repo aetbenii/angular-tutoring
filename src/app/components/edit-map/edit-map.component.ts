@@ -63,7 +63,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
     ngAfterViewInit(): void {}
 
     onSaveClick(): void{
-      let transform = this.roomGroup.attr('transform');
+      const transform = this.roomGroup.attr('transform');
       const translate = transform.match(/translate\(([^,]+),([^)]+)\)/);
       const roomData = {
         x: parseFloat(translate[1]),
@@ -74,11 +74,13 @@ export class EditMapComponent implements OnInit, AfterViewInit{
         seats: Object.fromEntries(
           Array.from(this.seats).map(seat => {
             const id = seat.attr('id');
+            const transform = seat.attr('transform');
+            const translate = transform.match(/translate\(([^,]+),([^)]+)\)/) || "0";
             return [
               id,
               {
-                x: parseFloat(seat.attr('x')),
-                y: parseFloat(seat.attr('y')),
+                x: parseFloat(translate[1]),
+                y: parseFloat(translate[2]),
                 width: parseFloat(seat.attr('width')),
                 height: parseFloat(seat.attr('height')),
                 rotation: parseFloat(seat.attr('rotation'))
@@ -88,6 +90,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
         )
       };
       this.roomService.updateRoom(Number(this.roomId), roomData);
+      console.log(roomData);
     }
   
     private initializeSvg(floorNumber: number): void {
@@ -179,13 +182,13 @@ export class EditMapComponent implements OnInit, AfterViewInit{
     function createSmallRect(seat: Seat, room: any, roomGroup: any, seats: any) {
       const rect = roomGroup.append('rect')
       .attr('id', seat.id)
-      .attr('transform', `translate(${seat.x}, ${seat.y})`)
+      .attr('transform', `translate(${seat.x}, ${seat.y}) rotate(${seat.rotation}, ${seat.width / 2}, ${seat.height / 2})`)
       .attr('width', seat.width)
       .attr('height', seat.height)
       .attr('fill', 'rgb(63, 81, 181)')
       .attr('stroke', 'black')
       .attr('stroke-width', 2)
-      .attr('rotation', 0)
+      .attr('rotation', seat.rotation)
       .call(d3.drag()
         .on('start', function (event) {
           const rectElement = d3.select(this);
@@ -202,7 +205,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
         .on('drag', function (event) {
           const rectElement = d3.select(this);
           const currentRotation = parseInt(rectElement.attr('rotation') || '0');
-          
+          console.log(currentRotation, seat.rotation);
           // Begrenzungen aus dem großen Rechteck holen
           const largeX = 0;
           const largeY = 0;
@@ -227,6 +230,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
           newY = Math.max(currentRotation === 0 ?
             largeY :
             largeY - seat.width / 2,
+          //bottom
           Math.min(newY, currentRotation === 0 ? 
             largeY + largeHeight - seat.height : 
             largeY + largeHeight - 1.5 * seat.width
@@ -259,7 +263,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
           if(newRotation == 180) newRotation = 0;
           rectElement.attr("transform", `translate(${x}, ${y}) rotate(${newRotation}, ${centerX}, ${centerY})`);
           rectElement.attr('rotation', newRotation);
-          text.attr("transform", `translate(${x+25} , ${y+50}) rotate(${newRotation})`);
+          text.attr("transform", `translate(${x+ seat.width / 2} , ${y+ seat.height / 2}) rotate(${newRotation})`);
           text.attr('rotation', newRotation);
         }
       })
@@ -268,10 +272,13 @@ export class EditMapComponent implements OnInit, AfterViewInit{
     // Text-Element mit transform erstellen statt mit x/y
     console.log(seat.x, seat.y);
     const text = roomGroup.append('text')
-      .attr('transform', `translate(${seat.x + seat.width / 2}, ${seat.y + seat.height / 2})`)
+    
+      .attr('transform', seat.rotation === 0 ? `
+        translate(${seat.x + seat.width / 2}, ${seat.y + seat.height / 2})` : 
+        `translate(${seat.x + seat.width / 2} , ${seat.y + seat.height / 2}) rotate(${seat.rotation})`)
       .attr('text-anchor', 'middle')
       .attr('alignment-baseline', 'middle')
-      .attr('rotation', 0)
+      .attr('rotation', seat.rotation)
       .style('writing-mode', 'sideways-lr')
       .attr('fill', 'white')
       .style('font-size', '12px')
