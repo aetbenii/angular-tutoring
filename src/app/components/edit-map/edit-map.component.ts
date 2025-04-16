@@ -8,10 +8,14 @@ import { RoomService } from '../../services/room.service';
 import { HttpClient } from '@angular/common/http';
 import { Seat } from '../../interfaces/seat.interface';
 import { MatButtonModule } from '@angular/material/button';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 @Component({
   selector: 'app-edit-map',
-  imports: [MatButtonModule],
+  imports: [
+    MatButtonModule,
+    MatSnackBarModule
+  ],
   templateUrl: './edit-map.component.html',
   styleUrl: './edit-map.component.scss'
 })
@@ -40,6 +44,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
     constructor(
       private route: ActivatedRoute,
       private roomService: RoomService,
+       private snackBar: MatSnackBar,
       private http: HttpClient) {}
   
     ngOnInit(): void {
@@ -89,8 +94,24 @@ export class EditMapComponent implements OnInit, AfterViewInit{
           })
         )
       };
-      this.roomService.updateRoom(Number(this.roomId), roomData);
-      console.log(roomData);
+      this.roomService.updateRoom(Number(this.roomId), roomData).subscribe({
+        next: (response) => {
+          console.log('Room updated successfully:', response);
+          this.snackBar.open('Raum erfolgreich gespeichert!', 'Schließen', {
+            duration: 3000,
+            horizontalPosition: 'right',
+            verticalPosition: 'top',
+          });
+        },
+        error: (error) => {
+          console.error('Update failed:', error);
+          this.snackBar.open('Fehler beim Speichern!', 'Schließen', {
+            duration: 3000,
+            horizontalPosition: 'right',
+            verticalPosition: 'top',
+          });
+        }
+      });
     }
   
     private initializeSvg(floorNumber: number): void {
@@ -306,7 +327,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
       } else {
         // Fall für 0 Mitarbeiter oder undefined Array
         text.append('tspan')
-          .text("empty");
+          .text("Empty");
       }
     }
     

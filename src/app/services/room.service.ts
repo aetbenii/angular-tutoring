@@ -92,23 +92,17 @@ export class RoomService {
         });
     }
 
-    updateRoom(id: number, updates: any){
-        return this.http.patch(`${this.apiUrl}/rooms/${id}/geometry`, updates, {
-          headers: { 'Content-Type': 'application/json' }
-        }).pipe(
-          catchError(error => {
-            console.error('Error updating room:', error);
-            return throwError(() => new Error('Update fehlgeschlagen'));
-          })
-        ).subscribe({
-            next: (response) => {
-              console.log('Room updated successfully:', response);
-            },
-            error: (error) => {
-              console.error('Update failed:', error);
-            }
-          });
-        }
+    updateRoom(id: number, updates: any): Observable<any> {
+  return this.http.patch(`${this.apiUrl}/rooms/${id}/geometry`, updates, {
+    headers: { 'Content-Type': 'application/json' }
+  }).pipe(
+    catchError(error => {
+      console.error('Error updating room:', error);
+      return throwError(() => new Error('Update fehlgeschlagen'));
+    })
+  );
+}
+
 
     getSeatInfo(seatId: number): Observable<Seat> {
         return this.http.get<Seat>(`${this.apiUrl}/seats/${seatId}`).pipe(

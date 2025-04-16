@@ -217,15 +217,15 @@ export class FloorMapComponent implements OnInit {
     .attr('class', 'room-group');
 
     const rect = group.append('rect')
-      .attr('x', seat.x)
-      .attr('y', seat.y)
+      .attr('transform', `translate(${seat.x}, ${seat.y}), rotate(${seat.rotation}, ${seat.width/2}, ${seat.height/2})`)
       .attr('width', seat.width)
       .attr('height', seat.height)
       .attr('stroke', 'black')
-      .attr('stroke-width', 2);  
+      .attr('stroke-width', 2)
+      .attr('rotation', seat.rotation);
 
       if(seat.employees && seat.employees.length > 0){
-        rect.attr('fill', 'rgb(219, 18, 18)');
+        rect.attr('fill', 'rgb(63, 81, 181)');
         rect.append('title')
         .text(seat.employees.map(employee => employee.fullName).join(', '));
 
@@ -235,15 +235,42 @@ export class FloorMapComponent implements OnInit {
       }
 
       const text = roomGroup.append('text')
-      .attr('x', seat.x + seat.width/2)
-      .attr('y', seat.y + seat.height/2)
+      .attr('transform', seat.rotation === 0 ? `
+        translate(${seat.x + seat.width / 2}, ${seat.y + seat.height / 2})` : 
+        `translate(${seat.x + seat.width / 2} , ${seat.y + seat.height / 2}) rotate(${seat.rotation})`)
+      .attr('dy', '.35em')
       .attr('text-anchor', 'middle')
       .attr('fill', 'white')
       .attr('alignment-baseline', 'middle') 
       .style('writing-mode', 'sideways-lr')
-      .style('pointer-events', 'none')
-      .text(seat.employees?.map(employee => employee.fullName).join(', ') || 'empty')
-      ;
+      .style('font-size', '12px')
+      .style('pointer-events', 'none');
+      
+      if (seat.employees && seat.employees.length > 1) {
+      // Erstes tspan ohne eigene Positionierung
+      text.append('tspan')
+        .text(seat.employees[0].fullName)
+        .attr('x', '-0.8em');
+      // Weitere tspans mit vertikalem Abstand
+      // Da wir text-anchor="middle" verwenden, müssen wir x="0" setzen,
+      // damit die Zeilen zentriert bleiben
+      for (let i = 1; i < seat.employees.length; i++) {
+        text.append('tspan')
+          .attr('y', 0) // Wichtig: x=0 bedeutet zentriert relativ zum transformierten text-Element
+          .attr('dx', '1.2em') // Vertikaler Abstand zum vorherigen tspan
+          .text(seat.employees[i].fullName);
+      }
+    }  else {
+      // Prüfe explizit, ob genau ein Mitarbeiter vorhanden ist
+      if (seat.employees && seat.employees.length === 1) {
+        text.append('tspan')
+          .text(seat.employees[0].fullName); // Sicher, da wir wissen, dass es existiert
+      } else {
+        // Fall für 0 Mitarbeiter oder undefined Array
+        text.append('tspan')
+          .text("Empty");
+      }
+    }
   }
 
 }
