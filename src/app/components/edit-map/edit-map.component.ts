@@ -44,7 +44,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
     constructor(
       private route: ActivatedRoute,
       private roomService: RoomService,
-       private snackBar: MatSnackBar,
+      private snackBar: MatSnackBar,
       private http: HttpClient) {}
   
     ngOnInit(): void {
@@ -97,7 +97,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
       this.roomService.updateRoom(Number(this.roomId), roomData).subscribe({
         next: (response) => {
           console.log('Room updated successfully:', response);
-          this.snackBar.open('Raum erfolgreich gespeichert!', 'Schließen', {
+          this.snackBar.open('Room updated successfully', 'Close', {
             duration: 3000,
             horizontalPosition: 'right',
             verticalPosition: 'top',
@@ -105,7 +105,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
         },
         error: (error) => {
           console.error('Update failed:', error);
-          this.snackBar.open('Fehler beim Speichern!', 'Schließen', {
+          this.snackBar.open('Update failed!', 'Close', {
             duration: 3000,
             horizontalPosition: 'right',
             verticalPosition: 'top',
@@ -113,7 +113,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
         }
       });
     }
-  
+
     private initializeSvg(floorNumber: number): void {
       console.log('Initializing SVG for floor', floorNumber);
       const container = this.canvasContainer.nativeElement;
@@ -206,8 +206,8 @@ export class EditMapComponent implements OnInit, AfterViewInit{
       .attr('transform', `translate(${seat.x}, ${seat.y}) rotate(${seat.rotation}, ${seat.width / 2}, ${seat.height / 2})`)
       .attr('width', seat.width)
       .attr('height', seat.height)
-      .attr('fill', 'rgb(63, 81, 181)')
-      .attr('stroke', 'black')
+      .attr('fill', 'rgb(221, 235, 247)')
+      .attr('stroke', 'rgb(34, 74, 144)')
       .attr('stroke-width', 2)
       .attr('rotation', seat.rotation)
       .call(d3.drag()
@@ -291,7 +291,6 @@ export class EditMapComponent implements OnInit, AfterViewInit{
       ;
     
     // Text-Element mit transform erstellen statt mit x/y
-    console.log(seat.x, seat.y);
     const text = roomGroup.append('text')
     
       .attr('transform', seat.rotation === 0 ? `
@@ -301,7 +300,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
       .attr('alignment-baseline', 'middle')
       .attr('rotation', seat.rotation)
       .style('writing-mode', 'sideways-lr')
-      .attr('fill', 'white')
+      .attr('fill', 'black')
       .style('font-size', '12px')
       .style('pointer-events', 'none');
     
@@ -323,11 +322,13 @@ export class EditMapComponent implements OnInit, AfterViewInit{
       // Prüfe explizit, ob genau ein Mitarbeiter vorhanden ist
       if (seat.employees && seat.employees.length === 1) {
         text.append('tspan')
-          .text(seat.employees[0].fullName); // Sicher, da wir wissen, dass es existiert
+          .text(seat.employees[0].fullName)
+          .attr('dx', '0.2em'); // Sicher, da wir wissen, dass es existiert
       } else {
         // Fall für 0 Mitarbeiter oder undefined Array
         text.append('tspan')
-          .text("Empty");
+          .text("Empty")
+          .attr('dx', '0.2em');
       }
     }
     

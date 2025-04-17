@@ -192,9 +192,9 @@ export class FloorMapComponent implements OnInit {
     const rect = roomGroup.append('rect')
       .attr('width', room.width)
       .attr('height', room.height)
-      .attr('fill', 'rgba(223, 223, 223, 0.57)')
-      .attr('stroke', 'black')
-      .attr('stroke-width', 2)
+      .attr('fill', 'rgba(255, 255, 255, 0.3)')
+      // .attr('stroke', 'black')
+      // .attr('stroke-width', 2)
       //.append('title').text(`${room.roomNumber}`)
       ;
 
@@ -220,17 +220,16 @@ export class FloorMapComponent implements OnInit {
       .attr('transform', `translate(${seat.x}, ${seat.y}), rotate(${seat.rotation}, ${seat.width/2}, ${seat.height/2})`)
       .attr('width', seat.width)
       .attr('height', seat.height)
-      .attr('stroke', 'black')
+      .attr('stroke', 'rgb(34, 74, 144)')
       .attr('stroke-width', 2)
-      .attr('rotation', seat.rotation);
+      .attr('rotation', seat.rotation)
+      .attr('fill', 'rgb(221, 235, 247)');
 
       if(seat.employees && seat.employees.length > 0){
-        rect.attr('fill', 'rgb(63, 81, 181)');
         rect.append('title')
         .text(seat.employees.map(employee => employee.fullName).join(', '));
 
       } else {
-        rect.attr('fill', 'rgb(63, 81, 181)');
         rect.append('title').text('Empty');
       }
 
@@ -238,9 +237,8 @@ export class FloorMapComponent implements OnInit {
       .attr('transform', seat.rotation === 0 ? `
         translate(${seat.x + seat.width / 2}, ${seat.y + seat.height / 2})` : 
         `translate(${seat.x + seat.width / 2} , ${seat.y + seat.height / 2}) rotate(${seat.rotation})`)
-      .attr('dy', '.35em')
       .attr('text-anchor', 'middle')
-      .attr('fill', 'white')
+      .attr('fill', 'black')
       .attr('alignment-baseline', 'middle') 
       .style('writing-mode', 'sideways-lr')
       .style('font-size', '12px')
@@ -264,15 +262,16 @@ export class FloorMapComponent implements OnInit {
       // Prüfe explizit, ob genau ein Mitarbeiter vorhanden ist
       if (seat.employees && seat.employees.length === 1) {
         text.append('tspan')
+          .attr('dx', '0.2em')
           .text(seat.employees[0].fullName); // Sicher, da wir wissen, dass es existiert
       } else {
         // Fall für 0 Mitarbeiter oder undefined Array
         text.append('tspan')
+          .attr('dx', '0.2em')
           .text("Empty");
       }
     }
   }
-
 }
 
 
