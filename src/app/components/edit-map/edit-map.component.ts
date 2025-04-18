@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, inject, OnInit, Signal, signal, ViewChild } from '@angular/core';
+import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, inject, OnInit, Signal, signal, ViewChild } from '@angular/core';
 import { FloorService } from '../../services/floor.service';
 import { FormControl } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -24,6 +24,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
   roomId: string | null = null;
   selectedRoomControl = new FormControl<number | null>(null);
   selectedRoom!: Signal<Room | null>;
+  isDeleteModeActive = signal<boolean>(false);
   
 
   @ViewChild('canvasContainer', { static: false }) canvasContainer!: ElementRef;
@@ -36,6 +37,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
     private seats: Set<d3.Selection<SVGRectElement, any, null, undefined>> = new Set();
     private zoom: any;
     private apiUrl = 'http://localhost:8080/api';
+    
   
     // Signals for reactive state management
     loading = signal<boolean>(false);
@@ -45,7 +47,8 @@ export class EditMapComponent implements OnInit, AfterViewInit{
       private route: ActivatedRoute,
       private roomService: RoomService,
       private snackBar: MatSnackBar,
-      private http: HttpClient) {}
+      private http: HttpClient,
+      private cdRef: ChangeDetectorRef) {}
   
     ngOnInit(): void {
       this.floorId = this.route.snapshot.paramMap.get('floorId');
@@ -113,6 +116,30 @@ export class EditMapComponent implements OnInit, AfterViewInit{
         }
       });
     }
+
+    activateDeleteMode(): void {
+    this.isDeleteModeActive.set(true); // oder this.isDeleteModeActive = true, wenn kein Signal
+    console.log('Delete mode activated. Click a seat to delete it.');
+    this.snackBar.open('Delete mode active. Click a seat.', 'Dismiss', { duration: 2000 });
+
+    // Visuelles Feedback: Mauszeiger über Sitzen ändern
+    this.roomGroup?.selectAll('rect.seat-rect') // Klasse 'seat-rect' hinzufügen (siehe createSmallRect)
+      .style('cursor', 'crosshair');
+  }
+
+  private deactivateDeleteMode(): void {
+    this.isDeleteModeActive.set(false); // oder this.isDeleteModeActive = false
+    console.log('Delete mode deactivated.');
+
+    // Visuelles Feedback zurücksetzen
+    this.roomGroup?.selectAll('rect.seat-rect')
+      .style('cursor', 'pointer'); // Oder den ursprünglichen Drag-Cursor
+
+    // Angular über die Änderung informieren (wichtig bei OnPush oder externen Events)
+    this.cdRef.detectChanges();
+  }
+
+
 
     private initializeSvg(floorNumber: number): void {
       console.log('Initializing SVG for floor', floorNumber);
@@ -200,7 +227,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
 
 
     // Kleines Rechteck hinzufügen
-    function createSmallRect(seat: Seat, room: any, roomGroup: any, seats: any) {
+    const createSmallRect = (seat: Seat, room: any, roomGroup: any, seats: any) => {
       const rect = roomGroup.append('rect')
       .attr('id', seat.id)
       .attr('transform', `translate(${seat.x}, ${seat.y}) rotate(${seat.rotation}, ${seat.width / 2}, ${seat.height / 2})`)
@@ -226,7 +253,6 @@ export class EditMapComponent implements OnInit, AfterViewInit{
         .on('drag', function (event) {
           const rectElement = d3.select(this);
           const currentRotation = parseInt(rectElement.attr('rotation') || '0');
-          console.log(currentRotation, seat.rotation);
           // Begrenzungen aus dem großen Rechteck holen
           const largeX = 0;
           const largeY = 0;
@@ -268,12 +294,23 @@ export class EditMapComponent implements OnInit, AfterViewInit{
           //rectElement.attr('x', newX).attr('y', newY);
         })
       )
-      .on('click', function(this:any) {
-        const rectElement = d3.select(this);
-        const transform = d3.select(this).attr('transform');
+      .on('click', (event: any) => {
+
+        const rectElement = d3.select(event.currentTarget);
+
+        if (this.isDeleteModeActive()) {
+          console.log('Delete mode active. Deleting seat:', rectElement.attr('id'));
+          rectElement.remove();
+          text.remove();
+          this.snackBar.open(`Seat ${seat.id} deleted`, 'Close', { duration: 2000 });
+          this.deactivateDeleteMode();
+          event.stopPropagation();
+        }
+
+        const transform = d3.select(event.currentTarget).attr('transform');
         const translate = transform.match(/translate\(([^,]+),([^)]+)\)/);
         if (translate) {
-          const bbox = this.getBBox();
+          const bbox = rectElement.node().getBBox();
           const centerX = bbox.x + bbox.width/2;
           const centerY = bbox.y + bbox.height/2;
 
