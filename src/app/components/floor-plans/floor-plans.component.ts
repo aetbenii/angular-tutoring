@@ -17,6 +17,7 @@ import { Floor } from '../../interfaces/floor.interface';
 import { Room } from '../../interfaces/room.interface';
 import { Signal } from '@angular/core';
 import { RouterModule } from '@angular/router';
+import { EmployeeService } from '../../services/employee.service';
 
 @Component({
   selector: 'app-floor-plans',
@@ -48,7 +49,8 @@ export class FloorPlansComponent implements OnInit {
     private floorService: FloorService,
     private dialog: MatDialog,
     private http: HttpClient,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private employeeService: EmployeeService
   ) {
     this.floors = floorService.floors;
     this.selectedFloor = floorService.selectedFloor;
@@ -73,13 +75,19 @@ export class FloorPlansComponent implements OnInit {
   }
 
   private unassignSeat(employeeId: number, seatId: number): void {
-    this.http.delete(`http://localhost:8080/api/employees/${employeeId}/unassign-seat/${seatId}`)
+    this.http.delete(`http://localhost:8080/api/employees/${employeeId}/seats/${seatId}`)
       .subscribe({
-        next: () => {
+        next: async () => {
           // Refresh the floor data
           const currentFloor = this.selectedFloorControl.value;
           if (currentFloor !== null) {
-            this.floorService.loadFloor(currentFloor);
+            await this.floorService.loadFloor(currentFloor);
+            const floor = this.selectedFloor();
+            if (floor) {
+              for (const room of floor.rooms) {
+                room.seats = await this.enrichSeatsWithEmployees(room.seats);
+              }
+            }
           }
           this.snackBar.open('Seat unassigned successfully', 'Close', {
             duration: 3000,
@@ -99,13 +107,20 @@ export class FloorPlansComponent implements OnInit {
       });
   }
 
-  ngOnInit(): void {
+  async ngOnInit(): Promise<void> {
     // Handle floor selection changes
-    this.selectedFloorControl.valueChanges.subscribe(floorNumber => {
+    this.selectedFloorControl.valueChanges.subscribe(async floorNumber => {
       if (floorNumber !== null) {
         this.loading = true;
         this.error = null;
-        this.floorService.loadFloor(floorNumber);
+        await this.floorService.loadFloor(floorNumber);
+        const floor = this.selectedFloor();
+        if (floor) {
+          for(const room of floor.rooms) {
+            room.seats = await this.enrichSeatsWithEmployees(room.seats);
+          }
+          console.log('Enriched seats with employees:', floor.rooms);
+        } 
         this.loading = false;
       }
     });
@@ -116,6 +131,19 @@ export class FloorPlansComponent implements OnInit {
       this.selectedFloorControl.setValue(currentFloors[0].floorNumber);
     }
   }
+
+  private enrichSeatsWithEmployees(seats: any[]): Promise<any[]> {
+  return Promise.all(seats.map(async seat => {
+    if (seat.employeeIds && seat.employeeIds.length > 0) {
+      const employees = await Promise.all(
+        seat.employeeIds.map((id: number) => this.employeeService.getEmployeeById(id).toPromise())
+      );
+      return { ...seat, employees };
+    } else {
+      return { ...seat, employees: [] };
+    }
+  }));
+}
 
   printRoomLabel(room: Room): void {
     // Create a new PDF document
@@ -139,15 +167,15 @@ export class FloorPlansComponent implements OnInit {
     yPosition += 20;
     doc.setFontSize(12);
 
-    room.seats.forEach(seat => {
-      if (seat.employees) {
-        seat.employees.forEach(employee => {
-          const text = `${seat.seatNumber}: ${employee.fullName} - ${employee.occupation}`;
-          doc.text(text, 20, yPosition);
-          yPosition += 10;
-        })
-      }
-    });
+    // room.seats.forEach(seat => {
+    //   if (seat.employees) {
+    //     seat.employees.forEach(employee => {
+    //       const text = `${seat.seatNumber}: ${employee.fullName} - ${employee.occupation}`;
+    //       doc.text(text, 20, yPosition);
+    //       yPosition += 10;
+    //     })
+    //   }
+    // });
 
     // Save the PDF
     doc.save(`room-${room.roomNumber}-label.pdf`);

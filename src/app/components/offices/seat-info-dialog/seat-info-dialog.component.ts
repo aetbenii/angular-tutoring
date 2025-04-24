@@ -5,6 +5,12 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { Seat } from '../../../interfaces/seat.interface';
+import { Employee } from '../../../interfaces/employee.interface';
+
+export interface SeatInfoDialogData {
+  seat: Seat; // Kann null sein, wenn der Ladevorgang fehlschlug
+  employees: Employee[];
+}
 
 @Component({
 selector: 'app-seat-info-dialog',
@@ -39,20 +45,20 @@ template: `
       <div class="location-info">
         <div class="info-row">
           <mat-icon>apartment</mat-icon>
-          <span>Floor: {{seat.room.floor.name}}</span>
+          <span>Floor: {{seat.floorName}}</span>
         </div>
         <div class="info-row">
           <mat-icon>meeting_room</mat-icon>
-          <span>Room: {{seat.room.name}}</span>
+          <span>Room: {{seat.roomName}}</span>
         </div>
         <div class="info-row">
           <mat-icon>chair</mat-icon>
           <span>Seat: {{seat.seatNumber}}</span>
         </div>
       </div>
-      <ng-container *ngIf="(seat?.employees ?? []).length > 0" class="employee-info">
+      <ng-container *ngIf="employees.length > 0" class="employee-info">
         <h3>Assigned Employee</h3>
-        <div *ngFor="let employee of seat.employees">
+        <div *ngFor="let employee of employees">
           <div class="info-row">
             <mat-icon>person</mat-icon>
             <span>{{employee.fullName}}</span>
@@ -63,7 +69,7 @@ template: `
           </div>
         </div>
       </ng-container>
-      <div *ngIf="seat?.employees?.length === 0" class="no-employee">
+      <div *ngIf="employees.length === 0" class="no-employee">
         <mat-icon>person_off</mat-icon>
         <p>No employee assigned to this seat</p>
       </div>
@@ -174,11 +180,16 @@ margin: 0;
 export class SeatInfoDialogComponent {
 loading = false;
 error: string | null = null;
+seat: Seat;
+employees: Employee[];
 
 constructor(
 private dialogRef: MatDialogRef<SeatInfoDialogComponent>,
-  @Inject(MAT_DIALOG_DATA) public seat: Seat
-  ) { }
+  @Inject(MAT_DIALOG_DATA) public result: SeatInfoDialogData
+  ) { 
+  this.seat = result.seat;
+  this.employees = result.employees;
+  }
 
   close(): void {
   this.dialogRef.close();

@@ -13,8 +13,10 @@ import { RoomGridComponent } from '../room-grid/room-grid.component';
 import { FloorService } from '../../services/floor.service';
 import { EmployeeService } from '../../services/employee.service';
 import { SeatInfoDialogComponent } from './seat-info-dialog/seat-info-dialog.component';
-import { catchError } from 'rxjs/operators';
-import { EMPTY } from 'rxjs';
+import { catchError, map, switchMap } from 'rxjs/operators';
+import { EMPTY, forkJoin, of } from 'rxjs';
+import { Seat } from '../../interfaces/seat.interface';
+import { Employee } from '../../interfaces/employee.interface';
 
 @Component({
   selector: 'app-offices',
@@ -40,6 +42,7 @@ export class OfficesComponent implements OnInit {
   selectedFloorControl = new FormControl<number | null>(null);
   floors;
   reservingForEmployee: { id: number; name: string } | null = null;
+  employees: Employee[] = [];
 
   constructor(
     private floorService: FloorService,
@@ -124,17 +127,60 @@ export class OfficesComponent implements OnInit {
             'Close',
             { duration: 5000 }
           );
+          this.employees = [];
           return EMPTY;
+        }),
+        switchMap(seat => {
+          if(!seat){
+            return of({seat: null, employees:[]})
+          }
+          if(seat.employeeIds.length > 0){
+            const employeeObservables = seat.employeeIds.map(id =>
+              this.employeeService.getEmployeeById(id).pipe(
+                catchError(err => {
+                  console.warn(`Could not fetch employee with ID ${id}: `, err);
+                  return of(null);
+                })
+              )
+            );
+            if(employeeObservables.length === 0){
+              return of({seat:seat, employees: []});
+            }
+            return forkJoin(employeeObservables).pipe(
+              map(employeesArray => {
+                const validEmployees = employeesArray.filter(employee => 
+                  employee !== null);
+                  
+                  return {seat: seat, employees: validEmployees};
+              }),
+              catchError(err => {
+                console.error(`Èrror during forkJoin for employees:`, err);
+                this.snackBar.open(
+                  `Could not load some employee details.`,
+                  `Close`,
+                  {duration: 3000}
+                );
+                return of({seat: seat, employees: []});
+              })
+            );
+          } else {
+            return of({seat:seat, employees: []});
+          }
         })
-      ).subscribe(seat => {
-        if (seat) {
+      ).subscribe(result => {
+        console.log(result);
+        if (result && result.seat) {
+          this.employees = result.employees;
           this.dialog.open(SeatInfoDialogComponent, {
-            data: seat,
+            data: result,
             width: '400px',
             panelClass: 'seat-info-dialog',
             autoFocus: false,
             restoreFocus: false
           });
+        } else if (result && result == null) {
+          console.warn(`Seat with ID ${seatId} not found or initial fetch failed.`);
+            this.employees = []; // Sicherstellen, dass Array leer ist
         }
       });
     }

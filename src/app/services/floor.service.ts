@@ -96,7 +96,7 @@ export class FloorService {
    */
   loadFloor(floorNumber: number): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.http.get<Floor>(`${this.apiUrl}/floors/${floorNumber}`, {
+      this.http.get<Floor>(`${this.apiUrl}/floors/${floorNumber}/embed`, {
         headers: {
           'Accept': 'application/json'
         },

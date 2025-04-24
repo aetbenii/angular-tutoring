@@ -60,8 +60,8 @@ export class RoomService {
         });
     }
 
-    loadRoom(roomId: number){
-        this.http.get<Room>(`${this.apiUrl}/rooms/${roomId}`, {
+    loadRoom(roomId: number): Observable<any> {
+        return this.http.get<Room>(`${this.apiUrl}/rooms/${roomId}`, {
             headers: {
                 'Accept': 'application/json'
             },
@@ -71,25 +71,6 @@ export class RoomService {
             retry(1),
             catchError(this.handleError)
         )
-        .subscribe({
-            next: (room) => {
-                console.log('Received room data:', room);
-
-                const sortedRoom = {
-                    ...room,
-                    seats: [...room.seats].sort((a, b) => {
-                        const aNum = parseInt(a.seatNumber);
-                        const bNum = parseInt(b.seatNumber);
-                        return aNum - bNum;
-                    })
-                };
-                this.selectedRoomSignal.set(sortedRoom);
-            },
-            error: (error) => {
-                console.error('Error loading room:', error);
-                this.selectedRoomSignal.set(null);
-            }
-        });
     }
 
     updateRoom(id: number, updates: any): Observable<any> {
@@ -113,5 +94,15 @@ export class RoomService {
           })
         );
       }
+
+    getSeatsByRoomId(roomId: number): Observable<Seat[]> {
+        return this.http.get<Seat[]>(`${this.apiUrl}/rooms/${roomId}/seats`).pipe(
+            retry(1),
+            catchError((error) => {
+                console.error('Error fetching seats:', error);
+                return throwError(() => error);
+            })
+        );
+    }
 }
 

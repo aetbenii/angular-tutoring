@@ -9,6 +9,7 @@ import { HttpClient } from '@angular/common/http';
 import { Seat } from '../../interfaces/seat.interface';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-edit-map',
@@ -20,11 +21,11 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
   styleUrl: './edit-map.component.scss'
 })
 export class EditMapComponent implements OnInit, AfterViewInit{
-  floorId: string | null = null;
-  roomId: string | null = null;
   selectedRoomControl = new FormControl<number | null>(null);
   selectedRoom!: Signal<Room | null>;
   isDeleteModeActive = signal<boolean>(false);
+  floorId: string | null;
+  roomId: string | null;
   
 
   @ViewChild('canvasContainer', { static: false }) canvasContainer!: ElementRef;
@@ -34,8 +35,9 @@ export class EditMapComponent implements OnInit, AfterViewInit{
     private g: any;
     private roomGroup: any;
     private room: any;
-    private seats: Set<d3.Selection<SVGRectElement, any, null, undefined>> = new Set();
+    private seatsGeometry: Set<d3.Selection<SVGRectElement, any, null, undefined>> = new Set();
     private zoom: any;
+    private seats: any;
     private apiUrl = 'http://localhost:8080/api';
     
   
@@ -48,23 +50,22 @@ export class EditMapComponent implements OnInit, AfterViewInit{
       private roomService: RoomService,
       private snackBar: MatSnackBar,
       private http: HttpClient,
-      private cdRef: ChangeDetectorRef) {}
-  
-    ngOnInit(): void {
-      this.floorId = this.route.snapshot.paramMap.get('floorId');
-      this.roomId = this.route.snapshot.paramMap.get('roomId');
-
-      if(this.roomId){
-        this.roomService.loadRoom(parseInt(this.roomId));
+      private cdRef: ChangeDetectorRef
+      ) {
+        this.floorId = this.route.snapshot.paramMap.get('floorId');
+        this.roomId = this.route.snapshot.paramMap.get('roomId');
         this.selectedRoom = this.roomService.selectedRoom;
-        const interval = setInterval(() => {
-          if (this.selectedRoom()) {
-            clearInterval(interval);
-            this.initializeSvg(Number(this.floorId));
-            this.loading.set(false);
-          }
-        }, 50);
+      }
   
+    async ngOnInit() {
+      if (this.roomId) {
+        this.seats = await firstValueFrom(this.roomService.getSeatsByRoomId(parseInt(this.roomId)));
+    await firstValueFrom(this.roomService.loadRoom(parseInt(this.roomId)));
+    // Jetzt sind beide Daten sicher da!
+    if (this.selectedRoom() && this.seats) {
+      this.initializeSvg(Number(this.floorId));
+      this.loading.set(false);
+    }
       }
   }
   
@@ -80,7 +81,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
         height: parseFloat(this.room.attr('height')),
       
         seats: Object.fromEntries(
-          Array.from(this.seats).map(seat => {
+          Array.from(this.seatsGeometry).map(seat => {
             const id = seat.attr('id');
             const transform = seat.attr('transform');
             const translate = transform.match(/translate\(([^,]+),([^)]+)\)/) || "0";
@@ -115,6 +116,10 @@ export class EditMapComponent implements OnInit, AfterViewInit{
           });
         }
       });
+    }
+
+    addSeat():void{
+
     }
 
     activateDeleteMode(): void {
@@ -162,9 +167,10 @@ export class EditMapComponent implements OnInit, AfterViewInit{
       this.g = this.svg.append('g')
         .attr('class', 'interactive-layer');
   
+        console.log(this.selectedRoom()?.x);
       this.roomGroup = this.g.append('g')
       .attr('class', 'room-group')
-      .attr('transform', `translate(${this.selectedRoom()?.x}, ${this.selectedRoom()?.y})`); // Startposition
+      .attr('transform', `translate(${this.selectedRoom()?.x ?? 0}, ${this.selectedRoom()?.y ?? 0})`); // Startposition
       // Großes Rechteck (Hintergrund)
       this.room = this.roomGroup.append('rect')
         .attr('x', 0)
@@ -341,43 +347,40 @@ export class EditMapComponent implements OnInit, AfterViewInit{
       .style('font-size', '12px')
       .style('pointer-events', 'none');
     
-    if (seat.employees && seat.employees.length > 1) {
-      // Erstes tspan ohne eigene Positionierung
-      text.append('tspan')
-        .text(seat.employees[0].fullName)
-        .attr('x', '-0.8em');
-      // Weitere tspans mit vertikalem Abstand
-      // Da wir text-anchor="middle" verwenden, müssen wir x="0" setzen,
-      // damit die Zeilen zentriert bleiben
-      for (let i = 1; i < seat.employees.length; i++) {
-        text.append('tspan')
-          .attr('y', 0) // Wichtig: x=0 bedeutet zentriert relativ zum transformierten text-Element
-          .attr('dx', '1.2em') // Vertikaler Abstand zum vorherigen tspan
-          .text(seat.employees[i].fullName);
-      }
-    }  else {
-      // Prüfe explizit, ob genau ein Mitarbeiter vorhanden ist
-      if (seat.employees && seat.employees.length === 1) {
-        text.append('tspan')
-          .text(seat.employees[0].fullName)
-          .attr('dx', '0.2em'); // Sicher, da wir wissen, dass es existiert
-      } else {
-        // Fall für 0 Mitarbeiter oder undefined Array
-        text.append('tspan')
-          .text("Empty")
-          .attr('dx', '0.2em');
-      }
-    }
-    
-
-
+    // if (seat.employees && seat.employees.length > 1) {
+    //   // Erstes tspan ohne eigene Positionierung
+    //   text.append('tspan')
+    //     .text(seat.employees[0].fullName)
+    //     .attr('x', '-0.8em');
+    //   // Weitere tspans mit vertikalem Abstand
+    //   // Da wir text-anchor="middle" verwenden, müssen wir x="0" setzen,
+    //   // damit die Zeilen zentriert bleiben
+    //   for (let i = 1; i < seat.employees.length; i++) {
+    //     text.append('tspan')
+    //       .attr('y', 0) // Wichtig: x=0 bedeutet zentriert relativ zum transformierten text-Element
+    //       .attr('dx', '1.2em') // Vertikaler Abstand zum vorherigen tspan
+    //       .text(seat.employees[i].fullName);
+    //   }
+    // }  else {
+    //   // Prüfe explizit, ob genau ein Mitarbeiter vorhanden ist
+    //   if (seat.employees && seat.employees.length === 1) {
+    //     text.append('tspan')
+    //       .text(seat.employees[0].fullName)
+    //       .attr('dx', '0.2em'); // Sicher, da wir wissen, dass es existiert
+    //   } else {
+    //     // Fall für 0 Mitarbeiter oder undefined Array
+    //     text.append('tspan')
+    //       .text("Empty")
+    //       .attr('dx', '0.2em');
+    //   }
+    //}
 
       seats.add(rect);
     }
     console.log(this.selectedRoom());
     this.selectedRoom()?.seats.forEach((seat, index) => {
       console.log(seat.id);
-      createSmallRect.call(this,seat, this.room, this.roomGroup, this.seats);
+      createSmallRect.call(this,seat, this.room, this.roomGroup, this.seatsGeometry);
     });
 
 
