@@ -20,6 +20,8 @@ import * as d3 from 'd3';
 import { RoomService } from '../../services/room.service';
 import { Seat } from '../../interfaces/seat.interface';
 import { SeatInfoDialogComponent } from '../offices/seat-info-dialog/seat-info-dialog.component';
+import { EmployeeService } from '../../services/employee.service';
+import { setActiveConsumer } from '@angular/core/primitives/signals';
 
 @Component({
   selector: 'app-floor-map',
@@ -56,7 +58,9 @@ export class FloorMapComponent implements OnInit {
   floors = this.floorService.floors;
   selectedFloor = this.floorService.selectedFloor;
 
-  constructor() {}
+  constructor(
+    private EmployeeService: EmployeeService,
+  ) {}
 
   ngOnInit(): void {
     // Handle floor selection changes
@@ -187,7 +191,7 @@ export class FloorMapComponent implements OnInit {
     
   }
 
-  private drawRoom(roomGroup: any, room: Room){
+  private async drawRoom(roomGroup: any, room: Room){
     roomGroup.attr('transform', `translate(${room.x}, ${room.y})`);
     const rect = roomGroup.append('rect')
       .attr('width', room.width)
@@ -207,6 +211,8 @@ export class FloorMapComponent implements OnInit {
     .text(room.name)
     ;
 
+    room.seats = await this.enrichSeatsWithEmployees(room.seats);
+
     room.seats.forEach((seat) => {
       this.drawSeat(roomGroup, seat);
     })
@@ -225,14 +231,6 @@ export class FloorMapComponent implements OnInit {
       .attr('rotation', seat.rotation)
       .attr('fill', 'rgb(221, 235, 247)');
 
-      // if(seat.employees && seat.employees.length > 0){
-      //   rect.append('title')
-      //   .text(seat.employees.map(employee => employee.fullName).join(', '));
-
-      // } else {
-      //   rect.append('title').text('Empty');
-      // }
-
       const text = roomGroup.append('text')
       .attr('transform', seat.rotation === 0 ? `
         translate(${seat.x + seat.width / 2}, ${seat.y + seat.height / 2})` : 
@@ -244,34 +242,47 @@ export class FloorMapComponent implements OnInit {
       .style('font-size', '12px')
       .style('pointer-events', 'none');
       
-    //   if (seat.employees && seat.employees.length > 1) {
-    //   // Erstes tspan ohne eigene Positionierung
-    //   text.append('tspan')
-    //     .text(seat.employees[0].fullName)
-    //     .attr('x', '-0.8em');
-    //   // Weitere tspans mit vertikalem Abstand
-    //   // Da wir text-anchor="middle" verwenden, müssen wir x="0" setzen,
-    //   // damit die Zeilen zentriert bleiben
-    //   for (let i = 1; i < seat.employees.length; i++) {
-    //     text.append('tspan')
-    //       .attr('y', 0) // Wichtig: x=0 bedeutet zentriert relativ zum transformierten text-Element
-    //       .attr('dx', '1.2em') // Vertikaler Abstand zum vorherigen tspan
-    //       .text(seat.employees[i].fullName);
-    //   }
-    // }  else {
-    //   // Prüfe explizit, ob genau ein Mitarbeiter vorhanden ist
-    //   if (seat.employees && seat.employees.length === 1) {
-    //     text.append('tspan')
-    //       .attr('dx', '0.2em')
-    //       .text(seat.employees[0].fullName); // Sicher, da wir wissen, dass es existiert
-    //   } else {
-    //     // Fall für 0 Mitarbeiter oder undefined Array
-    //     text.append('tspan')
-    //       .attr('dx', '0.2em')
-    //       .text("Empty");
-    //   }
-    // }
+      if (seat.employees && seat.employees.length > 1) {
+      // Erstes tspan ohne eigene Positionierung
+      text.append('tspan')
+        .text(seat.employees[0].fullName)
+        .attr('x', '-0.8em');
+      // Weitere tspans mit vertikalem Abstand
+      // Da wir text-anchor="middle" verwenden, müssen wir x="0" setzen,
+      // damit die Zeilen zentriert bleiben
+      for (let i = 1; i < seat.employees.length; i++) {
+        text.append('tspan')
+          .attr('y', 0) // Wichtig: x=0 bedeutet zentriert relativ zum transformierten text-Element
+          .attr('dx', '1.2em') // Vertikaler Abstand zum vorherigen tspan
+          .text(seat.employees[i].fullName);
+      }
+    }  else {
+      // Prüfe explizit, ob genau ein Mitarbeiter vorhanden ist
+      if (seat.employees && seat.employees.length === 1) {
+        text.append('tspan')
+          .attr('dx', '0.2em')
+          .text(seat.employees[0].fullName); // Sicher, da wir wissen, dass es existiert
+      } else {
+        // Fall für 0 Mitarbeiter oder undefined Array
+        text.append('tspan')
+          .attr('dx', '0.2em')
+          .text("Empty");
+      }
+    }
   }
+
+  private enrichSeatsWithEmployees(seats: Seat[]): Promise<any[]> {
+      return Promise.all(seats.map(async seat => {
+        if (seat.employeeIds && seat.employeeIds.length > 0) {
+          const employees = await Promise.all(
+            seat.employeeIds.map((id: number) => this.EmployeeService.getEmployeeById(id).toPromise())
+          );
+          return { ...seat, employees };
+        } else {
+          return { ...seat, employees: [] };
+        }
+      }));
+    }
 }
 
 

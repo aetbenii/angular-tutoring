@@ -1,7 +1,7 @@
 import { Injectable, Signal, signal } from "@angular/core";
 import { Room } from "../interfaces/room.interface";
 import { HttpClient, HttpErrorResponse } from "@angular/common/http";
-import { catchError, Observable, retry, throwError } from "rxjs";
+import { catchError, Observable, retry, tap, throwError } from "rxjs";
 import { Seat } from "../interfaces/seat.interface";
 
 @Injectable({
@@ -69,20 +69,34 @@ export class RoomService {
         })
         .pipe(
             retry(1),
+            tap(room => {
+                this.selectedRoomSignal.set(room);
+            }),
             catchError(this.handleError)
         )
     }
 
     updateRoom(id: number, updates: any): Observable<any> {
-  return this.http.patch(`${this.apiUrl}/rooms/${id}/geometry`, updates, {
-    headers: { 'Content-Type': 'application/json' }
-  }).pipe(
-    catchError(error => {
-      console.error('Error updating room:', error);
-      return throwError(() => new Error('Update fehlgeschlagen'));
-    })
-  );
-}
+    return this.http.patch(`${this.apiUrl}/rooms/${id}/geometry`, updates, {
+        headers: { 'Content-Type': 'application/json' }
+    }).pipe(
+        catchError(error => {
+        console.error('Error updating room:', error);
+        return throwError(() => new Error('Update fehlgeschlagen'));
+        })
+    );
+    }
+
+    updateSeat(roomId: number, seatId: number, updates: any): Observable<any> {
+        return this.http.patch(`${this.apiUrl}/rooms/${roomId}/seats/${seatId}/geometry`, updates, {
+            headers: { 'Content-Type': 'application/json' }
+        }).pipe(
+            catchError(error => {
+                console.error('Error updating seat:', error);
+                return throwError(() => new Error('Update failed'));
+            })
+        );
+    }
 
 
     getSeatInfo(seatId: number): Observable<Seat> {

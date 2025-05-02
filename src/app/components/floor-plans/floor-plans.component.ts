@@ -91,8 +91,8 @@ export class FloorPlansComponent implements OnInit {
           }
           this.snackBar.open('Seat unassigned successfully', 'Close', {
             duration: 3000,
-            horizontalPosition: 'end',
-            verticalPosition: 'top'
+            
+            
           });
         },
         error: (error) => {
@@ -167,15 +167,15 @@ export class FloorPlansComponent implements OnInit {
     yPosition += 20;
     doc.setFontSize(12);
 
-    // room.seats.forEach(seat => {
-    //   if (seat.employees) {
-    //     seat.employees.forEach(employee => {
-    //       const text = `${seat.seatNumber}: ${employee.fullName} - ${employee.occupation}`;
-    //       doc.text(text, 20, yPosition);
-    //       yPosition += 10;
-    //     })
-    //   }
-    // });
+    room.seats.forEach(seat => {
+      if (seat.employees) {
+        seat.employees.forEach(employee => {
+          const text = `${seat.seatNumber}: ${employee.fullName} - ${employee.occupation}`;
+          doc.text(text, 20, yPosition);
+          yPosition += 10;
+        })
+      }
+    });
 
     // Save the PDF
     doc.save(`room-${room.roomNumber}-label.pdf`);
