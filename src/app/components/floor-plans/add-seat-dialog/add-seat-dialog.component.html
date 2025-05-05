@@ -1,0 +1,11 @@
+<h1 mat-dialog-title>Add Seat</h1>
+<div mat-dialog-content style="padding-bottom: 0;">
+  <mat-form-field appearance="fill" style="width:100%;">
+    <mat-label>Seat Number</mat-label>
+    <input matInput name="seatNumber" [(ngModel)]="seatNumber" placeholder="Ex. 101-01" required>
+  </mat-form-field>
+</div>
+<div mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close>Abbrechen</button>
+  <button mat-raised-button color="primary" [mat-dialog-close]="seatNumber" cdkFocusInitial>Create</button>
+</div>

@@ -52,10 +52,26 @@
                     <br>
                   </span>
                 </ng-container>
-                <span *ngIf="seat?.employeeIds?.length === 0" class="vacant">
+                <div *ngIf="seat?.employeeIds?.length === 0" class="vacant">
+                  <span >
                   Vacant
-                </span>
+                  </span>
+                  <span (click)="deleteOnClick($event, seat.id, seat.seatNumber)" style="cursor: pointer;">
+                    <mat-icon>
+                      delete
+                    </mat-icon>
+                  </span>
+                </div>
               </div>
+            </div>
+            <div class="seat-info add-seat" (click)="addOnClick(room.id)">
+              <mat-icon>
+                <!-- chair -->
+                 add
+              </mat-icon>
+              <span>
+                Add Seat
+              </span>
             </div>
           </div>
         </mat-card-content>
