@@ -211,6 +211,8 @@ export class FloorMapComponent implements OnInit {
     .text(room.name)
     ;
 
+    this.createInfoBox(roomGroup, rect, room);
+
     room.seats = await this.enrichSeatsWithEmployees(room.seats);
 
     room.seats.forEach((seat) => {
@@ -283,6 +285,42 @@ export class FloorMapComponent implements OnInit {
         }
       }));
     }
+
+    private createInfoBox(roomGroup: any, rect: any, room: any): void {
+     const infoBox = roomGroup.append('rect')
+      .attr('x', 10)
+      .attr('y', rect.attr('height'))
+      .attr('width', rect.attr('width') - 20)
+      .attr('height', 75)
+      .attr('fill', 'rgb(254, 243, 205)')
+      .attr('stroke', 'black')
+      .attr('stroke-width', 2);
+
+    const foreignObject = roomGroup.append('foreignObject')
+      .attr('x', 10)
+      .attr('y', infoBox.attr('y'))
+      .attr('width', infoBox.attr('width'))
+      .attr('height', 75)
+
+    const htmlContent = foreignObject.append('xhtml:div')
+      
+      .style('height', '100%')
+      .style('padding', '0 10px 0 10px')
+      .style('font-size', '14px')
+      .style('font-family', 'Arial, sans-serif')
+      .html(`
+        <div style="display: flex; flex-direction: column; gap: 0; height: 100%; justify-content: center;">
+
+        <div style="text-align: center;">
+          <b>${room.name}</b> 
+          <br/>
+          <b>${room.roomNumber}</b>
+        </div>
+
+      </div>
+      `)
+
+  }
 }
 
 

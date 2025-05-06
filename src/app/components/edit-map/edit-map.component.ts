@@ -39,7 +39,8 @@ export class EditMapComponent implements OnInit, AfterViewInit{
     private seatsGeometry: Set<d3.Selection<SVGRectElement, any, null, undefined>> = new Set();
     private zoom: any;
     private seats: any[] = [];
-    private employees: any;
+    private infoBox: any;
+    private foreignObject: any;
     private apiUrl = 'http://localhost:8080/api';
     
   
@@ -218,6 +219,8 @@ export class EditMapComponent implements OnInit, AfterViewInit{
         .attr('stroke', 'black')
         .attr('stroke-width', 2);
 
+        this.createInfoBox.call(this, this.roomGroup, this.room);
+        
         this.roomGroup.call(d3.drag() 
         .on('start', function (event) {
             const transform = d3.select(this).attr('transform');
@@ -232,6 +235,8 @@ export class EditMapComponent implements OnInit, AfterViewInit{
             const newY = event.y - event.subject.offsetY;
             d3.select(this).attr('transform', `translate(${newX}, ${newY})`);  
         })
+        
+
     );
 
     const handle = this.roomGroup.append('circle')
@@ -262,7 +267,10 @@ export class EditMapComponent implements OnInit, AfterViewInit{
         
         // Setze die neue Größe des Rechtecks
         rectElement.attr('width', newWidth).attr('height', newHeight);
-
+        this.infoBox.attr('y', newHeight);
+        this.infoBox.attr('width', newWidth - 20);
+        this.foreignObject.attr('width', this.infoBox.attr('width'));
+        this.foreignObject.attr('y', newHeight);
         // Positioniere den Resizer neu (immer an der unteren rechten Ecke)
         handle.attr('cx', newWidth).attr('cy', newHeight);
     })
@@ -428,4 +436,39 @@ export class EditMapComponent implements OnInit, AfterViewInit{
   seats.add(rect);
 }
 
+  createInfoBox(roomGroup: any, room: any): void {
+    this.infoBox = roomGroup.append('rect')
+      .attr('x', 10)
+      .attr('y', room.attr('height'))
+      .attr('width', room.attr('width') - 20)
+      .attr('height', 75)
+      .attr('fill', 'rgb(254, 243, 205)')
+      .attr('stroke', 'black')
+      .attr('stroke-width', 2);
+
+    this.foreignObject = roomGroup.append('foreignObject')
+      .attr('x', 10)
+      .attr('y', this.infoBox.attr('y'))
+      .attr('width', this.infoBox.attr('width'))
+      .attr('height', 75)
+
+    const htmlContent = this.foreignObject.append('xhtml:div')
+      
+      .style('height', '100%')
+      .style('padding', '0 10px 0 10px')
+      .style('font-size', '14px')
+      .style('font-family', 'Arial, sans-serif')
+      .html(`
+        <div style="display: flex; flex-direction: column; gap: 0; height: 100%; justify-content: center;">
+
+        <div style="text-align: center;">
+          <b>${this.selectedRoom()?.name}</b> 
+          <br/>
+          <b>${this.selectedRoom()?.roomNumber}</b>
+        </div>
+
+      </div>
+      `)
+
+  }
 }
