@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, inject, OnInit, Signal, signal, ViewChild } from '@angular/core';
+import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, inject, OnInit, Signal, signal, ViewChild } from '@angular/core';
 import { FloorService } from '../../services/floor.service';
 import { FormControl } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -8,18 +8,25 @@ import { RoomService } from '../../services/room.service';
 import { HttpClient } from '@angular/common/http';
 import { Seat } from '../../interfaces/seat.interface';
 import { MatButtonModule } from '@angular/material/button';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { firstValueFrom, forkJoin } from 'rxjs';
+import { EmployeeService } from '../../services/employee.service';
 
 @Component({
   selector: 'app-edit-map',
-  imports: [MatButtonModule],
+  imports: [
+    MatButtonModule,
+    MatSnackBarModule
+  ],
   templateUrl: './edit-map.component.html',
   styleUrl: './edit-map.component.scss'
 })
 export class EditMapComponent implements OnInit, AfterViewInit{
-  floorId: string | null = null;
-  roomId: string | null = null;
   selectedRoomControl = new FormControl<number | null>(null);
   selectedRoom!: Signal<Room | null>;
+  isDeleteModeActive = signal<boolean>(false);
+  floorId: string | null;
+  roomId: string | null;
   
 
   @ViewChild('canvasContainer', { static: false }) canvasContainer!: ElementRef;
@@ -29,9 +36,12 @@ export class EditMapComponent implements OnInit, AfterViewInit{
     private g: any;
     private roomGroup: any;
     private room: any;
-    private seats: Set<d3.Selection<SVGRectElement, any, null, undefined>> = new Set();
+    private seatsGeometry: Set<d3.Selection<SVGRectElement, any, null, undefined>> = new Set();
     private zoom: any;
+    private seats: any[] = [];
+    private employees: any;
     private apiUrl = 'http://localhost:8080/api';
+    
   
     // Signals for reactive state management
     loading = signal<boolean>(false);
@@ -40,30 +50,57 @@ export class EditMapComponent implements OnInit, AfterViewInit{
     constructor(
       private route: ActivatedRoute,
       private roomService: RoomService,
-      private http: HttpClient) {}
-  
-    ngOnInit(): void {
-      this.floorId = this.route.snapshot.paramMap.get('floorId');
-      this.roomId = this.route.snapshot.paramMap.get('roomId');
-
-      if(this.roomId){
-        this.roomService.loadRoom(parseInt(this.roomId));
+      private EmployeeService: EmployeeService,
+      private snackBar: MatSnackBar,
+      private http: HttpClient,
+      private cdRef: ChangeDetectorRef
+      ) {
+        this.floorId = this.route.snapshot.paramMap.get('floorId');
+        this.roomId = this.route.snapshot.paramMap.get('roomId');
         this.selectedRoom = this.roomService.selectedRoom;
-        const interval = setInterval(() => {
-          if (this.selectedRoom()) {
-            clearInterval(interval);
-            this.initializeSvg(Number(this.floorId));
-            this.loading.set(false);
-          }
-        }, 50);
-  
       }
+  
+    async ngOnInit() {
+      if (this.roomId) {
+        await firstValueFrom(this.roomService.loadRoom(parseInt(this.roomId)));
+        
+        const seatIds = this.selectedRoom()?.seatIds || [];
+        const seatPromises = seatIds.map(seatId => {
+          return firstValueFrom(this.roomService.getSeatInfo(seatId));
+        });
+
+        this.seats = await Promise.all(seatPromises);
+        this.seats = await this.enrichSeatsWithEmployees(this.seats);
+
+        console.log(this.seats);
+        console.log(this.selectedRoom())
+        // Jetzt sind beide Daten sicher da!
+        if (this.selectedRoom()) {
+          this.initializeSvg(Number(this.floorId));
+          this.loading.set(false);
+      }
+    }
+  }
+
+  ngAfterViewInit(): void {
+    
   }
   
-    ngAfterViewInit(): void {}
+  private enrichSeatsWithEmployees(seats: Seat[]): Promise<any[]> {
+      return Promise.all(seats.map(async seat => {
+        if (seat.employeeIds && seat.employeeIds.length > 0) {
+          const employees = await Promise.all(
+            seat.employeeIds.map((id: number) => this.EmployeeService.getEmployeeById(id).toPromise())
+          );
+          return { ...seat, employees };
+        } else {
+          return { ...seat, employees: [] };
+        }
+      }));
+    }
 
     onSaveClick(): void{
-      let transform = this.roomGroup.attr('transform');
+      const transform = this.roomGroup.attr('transform');
       const translate = transform.match(/translate\(([^,]+),([^)]+)\)/);
       const roomData = {
         x: parseFloat(translate[1]),
@@ -71,25 +108,81 @@ export class EditMapComponent implements OnInit, AfterViewInit{
         width: parseFloat(this.room.attr('width')),
         height: parseFloat(this.room.attr('height')),
       
-        seats: Object.fromEntries(
-          Array.from(this.seats).map(seat => {
-            const id = seat.attr('id');
-            return [
-              id,
-              {
-                x: parseFloat(seat.attr('x')),
-                y: parseFloat(seat.attr('y')),
-                width: parseFloat(seat.attr('width')),
-                height: parseFloat(seat.attr('height')),
-                rotation: parseFloat(seat.attr('rotation'))
-              }
-            ];
-          })
-        )
+        // seats: Object.fromEntries(
+        //   Array.from(this.seatsGeometry).map(seat => {
+        //     const id = seat.attr('id');
+        //     const transform = seat.attr('transform');
+        //     const translate = transform.match(/translate\(([^,]+),([^)]+)\)/) || "0";
+        //     return [
+        //       id,
+        //       {
+        //         x: parseFloat(translate[1]),
+        //         y: parseFloat(translate[2]),
+        //         width: parseFloat(seat.attr('width')),
+        //         height: parseFloat(seat.attr('height')),
+        //         rotation: parseFloat(seat.attr('rotation'))
+        //       }
+        //     ];
+        //   })
+        //)
       };
-      this.roomService.updateRoom(Number(this.roomId), roomData);
+      const seatsData: any[] = [];
+      this.seatsGeometry.forEach((seat: any) => {
+        const transform = seat.attr('transform');
+        const translate = transform.match(/translate\(([^,]+),([^)]+)\)/) || "0";
+        const seatData = {
+          rotation: parseFloat(seat.attr('rotation')),
+          x: parseFloat(translate[1]),
+          y: parseFloat(translate[2]),
+          width: parseFloat(seat.attr('width')),
+          height: parseFloat(seat.attr('height'))
+       };
+       seatsData.push(seatData);
+      });
+
+      console.log('Room data to be saved:', roomData);
+      console.log('Seats data to be saved:', seatsData);
+      
+      this.roomService.updateRoom(Number(this.roomId), roomData).subscribe({
+        next: (response) => {
+          console.log('Room updated successfully:', response);
+          this.snackBar.open('Room updated successfully', 'Close', {
+            duration: 3000,
+            horizontalPosition: 'right',
+            verticalPosition: 'top',
+          });
+        },
+        error: (error) => {
+          console.error('Update failed:', error);
+          this.snackBar.open('Update failed!', 'Close', {
+            duration: 3000,
+            horizontalPosition: 'right',
+            verticalPosition: 'top',
+          });
+        }
+      });
+      this.seats.forEach((seat: Seat, index: number) => {
+        this.roomService.updateSeat(Number(this.roomId), Number(seat.id), seatsData[index]).subscribe({
+          next: (response) => {
+            console.log('Seat updated successfully:', response);
+            // this.snackBar.open('Seat updated successfully', 'Close', {
+            //   duration: 3000,
+            //   horizontalPosition: 'right',
+            //   verticalPosition: 'top',
+            // });
+          },
+          error: (error) => {
+            console.error('Update failed:', error);
+            // this.snackBar.open('Update failed!', 'Close', {
+            //   duration: 3000,
+            //   horizontalPosition: 'right',
+            //   verticalPosition: 'top',
+            // });
+          }
+        })
+      });
     }
-  
+
     private initializeSvg(floorNumber: number): void {
       console.log('Initializing SVG for floor', floorNumber);
       const container = this.canvasContainer.nativeElement;
@@ -111,9 +204,10 @@ export class EditMapComponent implements OnInit, AfterViewInit{
       this.g = this.svg.append('g')
         .attr('class', 'interactive-layer');
   
+      
       this.roomGroup = this.g.append('g')
       .attr('class', 'room-group')
-      .attr('transform', `translate(${this.selectedRoom()?.x}, ${this.selectedRoom()?.y})`); // Startposition
+      .attr('transform', `translate(${this.selectedRoom()?.x ?? 0}, ${this.selectedRoom()?.y ?? 0})`); // Startposition
       // Großes Rechteck (Hintergrund)
       this.room = this.roomGroup.append('rect')
         .attr('x', 0)
@@ -174,72 +268,8 @@ export class EditMapComponent implements OnInit, AfterViewInit{
     })
 );
 
-    // Kleines Rechteck hinzufügen
-    function createSmallRect(seat: Seat, room: any, roomGroup: any, seats: any) {
-      const rect = roomGroup.append('rect')
-      .attr('id', seat.id)
-      .attr('x', seat.x)
-      .attr('y', seat.y)
-      .attr('width', seat.width)
-      .attr('height', seat.height)
-      .attr('fill', 'rgb(63, 81, 181)')
-      .attr('stroke', 'black')
-      .attr('stroke-width', 2)
-      .call(d3.drag()
-          .on('start', function (event) {
-              event.subject.offsetX = event.x - parseFloat(d3.select(this).attr('x'));
-              event.subject.offsetY = event.y - parseFloat(d3.select(this).attr('y'));
-          })
-          .on('drag', function (event) {
-              const rectElement = d3.select(this);
-
-              // Begrenzungen aus dem großen Rechteck holen
-              const largeX = 0;
-              const largeY = 0;
-              const largeWidth = parseFloat(room.attr('width'));
-              const largeHeight = parseFloat(room.attr('height'));
-
-              // Neue Position berechnen
-              let newX = event.x - event.subject.offsetX;
-              let newY = event.y - event.subject.offsetY;
-
-              // Begrenzung einhalten
-              newX = Math.max(largeX, Math.min(newX, largeX + largeWidth - seat.width));
-              newY = Math.max(largeY, Math.min(newY, largeY + largeHeight - seat.height));
-
-              text.attr('x', newX + seat.width / 2)
-                  .attr('y', newY + seat.height / 2);
-
-              rectElement.attr('x', newX).attr('y', newY);
-          })
-
-          
-      ).attr('rotation', 0)
-      // .on("click", (event: { target: SVGRectElement; }) => {
-      //   angle+=45;
-      //   const bbox = (event.target as SVGRectElement).getBBox();
-      //   const cx = bbox.x + bbox.width/2;
-      //   const cy = bbox.y + bbox.height/2;
-
-      //   d3.select(event.target)
-      //     .attr("transform", `rotate(${angle}, ${cx}, ${cy})`)
-      // })
-      
-      ;
-
-      const text = roomGroup.append('text')
-      .attr('x', seat.x + seat.width / 2)  // Text in der Mitte des Rechtecks positionieren
-      .attr('y', seat.y + seat.height / 2)
-      .attr('dy', '.35em')  // Vertikale Ausrichtung des Textes
-      .attr('text-anchor', 'middle')  // Horizontale Ausrichtung des Textes
-      .attr('fill', 'white')  // Textfarbe
-      .text(seat.seatNumber);
-      seats.add(rect);
-    }
-    console.log(this.selectedRoom());
-    this.selectedRoom()?.seats.forEach((seat, index) => {
-      console.log(seat.id);
-      createSmallRect.call(this,seat, this.room, this.roomGroup, this.seats);
+    this.seats.forEach((seat: Seat) => {
+      this.createSmallRect.call(this,seat, this.room, this.roomGroup, this.seatsGeometry);
     });
 
 
@@ -288,5 +318,114 @@ export class EditMapComponent implements OnInit, AfterViewInit{
       const initialTransform = d3.zoomIdentity.translate(100, 100).scale(0.8);
       this.svg.call(this.zoom.transform, initialTransform);
     }
+
+    private createSmallRect(seat: Seat, room: any, roomGroup: any, seats: Set<any>): void {
+  const rect = roomGroup.append('rect')
+    .attr('id', seat.id)
+    .attr('transform', `translate(${seat.x}, ${seat.y}) rotate(${seat.rotation}, ${seat.width / 2}, ${seat.height / 2})`)
+    .attr('width', seat.width)
+    .attr('height', seat.height)
+    .attr('fill', 'rgb(221, 235, 247)')
+    .attr('stroke', 'rgb(34, 74, 144)')
+    .attr('stroke-width', 2)
+    .attr('rotation', seat.rotation)
+    .call(
+      d3.drag()
+        .on('start', function (event) {
+          const rectElement = d3.select(this);
+          const transform = rectElement.attr('transform');
+          const translate = transform.match(/translate\(([^,]+),([^)]+)\)/);
+          if (translate) {
+            const currentX = parseFloat(translate[1]);
+            const currentY = parseFloat(translate[2]);
+            event.subject.offsetX = event.x - currentX;
+            event.subject.offsetY = event.y - currentY;
+          }
+        })
+        .on('drag', function (event) {
+          const rectElement = d3.select(this);
+          const currentRotation = parseInt(rectElement.attr('rotation') || '0');
+          const largeX = 0;
+          const largeY = 0;
+          const largeWidth = parseFloat(room.attr('width'));
+          const largeHeight = parseFloat(room.attr('height'));
+          let newX = event.x - event.subject.offsetX;
+          let newY = event.y - event.subject.offsetY;
+          newX = Math.max(
+            currentRotation === 0 ? largeX : largeX + seat.width / 2,
+            Math.min(
+              newX,
+              currentRotation === 0 ? largeX + largeWidth - seat.width : largeX + largeWidth - 1.5 * seat.width
+            )
+          );
+          newY = Math.max(
+            currentRotation === 0 ? largeY : largeY - seat.width / 2,
+            Math.min(
+              newY,
+              currentRotation === 0 ? largeY + largeHeight - seat.height : largeY + largeHeight - 1.5 * seat.width
+            )
+          );
+          const centerX = seat.width / 2;
+          const centerY = seat.height / 2;
+          rectElement.attr('transform', `translate(${newX}, ${newY}) rotate(${currentRotation}, ${centerX}, ${centerY})`);
+          const textRotation = text.attr('rotation');
+          text.attr('transform', `translate(${newX + seat.width / 2}, ${newY + seat.height / 2}) rotate(${textRotation})`);
+        })
+    )
+    .on('click', (event: any) => {
+      const rectElement = d3.select(event.currentTarget);
+      const transform = d3.select(event.currentTarget).attr('transform');
+      const translate = transform.match(/translate\(([^,]+),([^)]+)\)/);
+      if (translate) {
+        const bbox = rectElement.node().getBBox();
+        const centerX = bbox.x + bbox.width / 2;
+        const centerY = bbox.y + bbox.height / 2;
+        const x = parseFloat(translate[1]);
+        const y = parseFloat(translate[2]);
+        let newRotation = parseInt(rectElement.attr('rotation')) + 90;
+        if (newRotation == 180) newRotation = 0;
+        rectElement.attr("transform", `translate(${x}, ${y}) rotate(${newRotation}, ${centerX}, ${centerY})`);
+        rectElement.attr('rotation', newRotation);
+        text.attr("transform", `translate(${x + seat.width / 2}, ${y + seat.height / 2}) rotate(${newRotation})`);
+        text.attr('rotation', newRotation);
+      }
+    });
+
+  // Text-Element mit transform erstellen statt mit x/y
+  const text = roomGroup.append('text')
+    .attr('transform',
+      seat.rotation === 0
+        ? `translate(${seat.x + seat.width / 2}, ${seat.y + seat.height / 2})`
+        : `translate(${seat.x + seat.width / 2}, ${seat.y + seat.height / 2}) rotate(${seat.rotation})`
+    )
+    .attr('text-anchor', 'middle')
+    .attr('alignment-baseline', 'middle')
+    .attr('rotation', seat.rotation)
+    .style('writing-mode', 'sideways-lr')
+    .attr('fill', 'black')
+    .style('font-size', '12px')
+    .style('pointer-events', 'none');
+
+  if (seat.employees && seat.employees.length > 1) {
+    text.append('tspan')
+      .text(seat.employees[0].fullName)
+      .attr('x', '-0.8em');
+    for (let i = 1; i < seat.employees.length; i++) {
+      text.append('tspan')
+        .attr('y', 0)
+        .attr('dx', '1.2em')
+        .text(seat.employees[i].fullName);
+    }
+  } else if (seat.employees && seat.employees.length === 1) {
+    text.append('tspan')
+      .text(seat.employees[0].fullName)
+      .attr('dx', '0.2em');
+  } else {
+    text.append('tspan')
+      .text("Empty")
+      .attr('dx', '0.2em');
+  }
+  seats.add(rect);
+}
 
 }

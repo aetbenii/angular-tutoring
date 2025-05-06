@@ -10,4 +10,5 @@ export interface Room {
   height: number;
   createdAt: number[];
   seats: Seat[];
+  seatIds: number[];
 }

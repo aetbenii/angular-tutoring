@@ -1,7 +1,7 @@
 import { Injectable, Signal, signal } from "@angular/core";
 import { Room } from "../interfaces/room.interface";
 import { HttpClient, HttpErrorResponse } from "@angular/common/http";
-import { catchError, Observable, retry, throwError } from "rxjs";
+import { catchError, Observable, retry, tap, throwError } from "rxjs";
 import { Seat } from "../interfaces/seat.interface";
 
 @Injectable({
@@ -60,8 +60,8 @@ export class RoomService {
         });
     }
 
-    loadRoom(roomId: number){
-        this.http.get<Room>(`${this.apiUrl}/rooms/${roomId}`, {
+    loadRoom(roomId: number): Observable<any> {
+        return this.http.get<Room>(`${this.apiUrl}/rooms/${roomId}`, {
             headers: {
                 'Accept': 'application/json'
             },
@@ -69,46 +69,35 @@ export class RoomService {
         })
         .pipe(
             retry(1),
+            tap(room => {
+                this.selectedRoomSignal.set(room);
+            }),
             catchError(this.handleError)
         )
-        .subscribe({
-            next: (room) => {
-                console.log('Received room data:', room);
-
-                const sortedRoom = {
-                    ...room,
-                    seats: [...room.seats].sort((a, b) => {
-                        const aNum = parseInt(a.seatNumber);
-                        const bNum = parseInt(b.seatNumber);
-                        return aNum - bNum;
-                    })
-                };
-                this.selectedRoomSignal.set(sortedRoom);
-            },
-            error: (error) => {
-                console.error('Error loading room:', error);
-                this.selectedRoomSignal.set(null);
-            }
-        });
     }
 
-    updateRoom(id: number, updates: any){
-        return this.http.patch(`${this.apiUrl}/rooms/${id}/geometry`, updates, {
-          headers: { 'Content-Type': 'application/json' }
+    updateRoom(id: number, updates: any): Observable<any> {
+    return this.http.patch(`${this.apiUrl}/rooms/${id}/geometry`, updates, {
+        headers: { 'Content-Type': 'application/json' }
+    }).pipe(
+        catchError(error => {
+        console.error('Error updating room:', error);
+        return throwError(() => new Error('Update fehlgeschlagen'));
+        })
+    );
+    }
+
+    updateSeat(roomId: number, seatId: number, updates: any): Observable<any> {
+        return this.http.patch(`${this.apiUrl}/rooms/${roomId}/seats/${seatId}/geometry`, updates, {
+            headers: { 'Content-Type': 'application/json' }
         }).pipe(
-          catchError(error => {
-            console.error('Error updating room:', error);
-            return throwError(() => new Error('Update fehlgeschlagen'));
-          })
-        ).subscribe({
-            next: (response) => {
-              console.log('Room updated successfully:', response);
-            },
-            error: (error) => {
-              console.error('Update failed:', error);
-            }
-          });
-        }
+            catchError(error => {
+                console.error('Error updating seat:', error);
+                return throwError(() => new Error('Update failed'));
+            })
+        );
+    }
+
 
     getSeatInfo(seatId: number): Observable<Seat> {
         return this.http.get<Seat>(`${this.apiUrl}/seats/${seatId}`).pipe(
@@ -119,5 +108,15 @@ export class RoomService {
           })
         );
       }
+
+    getSeatsByRoomId(roomId: number): Observable<Seat[]> {
+        return this.http.get<Seat[]>(`${this.apiUrl}/rooms/${roomId}/seats`).pipe(
+            retry(1),
+            catchError((error) => {
+                console.error('Error fetching seats:', error);
+                return throwError(() => error);
+            })
+        );
+    }
 }
 

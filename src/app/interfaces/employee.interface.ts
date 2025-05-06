@@ -1,6 +1,9 @@
+import { Seat } from "./seat.interface";
+
 export interface Employee {
   id: number;
-  firstName: string;
-  lastName: string;
+  fullName: string;
   occupation: string;
+  createdAt: number[];
+  seats: Seat[];
 } 

@@ -1,29 +1,19 @@
+import { Employee } from "./employee.interface";
+
 export interface Seat {
   id: number;
-  room: {
-    id: number;
-    floor: {
-      id: number;
-      floorNumber: number;
-      name: string;
-      createdAt: number[];
-    };
-    roomNumber: string;
-    name: string;
-    createdAt: number[];
-  };
   seatNumber: string;
+  roomId: number;
+  roomName: string;
+  floorId: number;
+  floorName: string;
   createdAt: number[];
-  x: number;           
-  y: number;          
-  width: number;       
-  height: number;      
-  rotation: number; 
-  employees?: {
-    id: number;
-    fullName: string;
-    occupation: string;
-    createdAt: number[];
-  }[];
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+  employeeIds: number[];
+  employees: Employee[];
   occupied: boolean;
 }

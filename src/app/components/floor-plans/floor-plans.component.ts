@@ -17,6 +17,9 @@ import { Floor } from '../../interfaces/floor.interface';
 import { Room } from '../../interfaces/room.interface';
 import { Signal } from '@angular/core';
 import { RouterModule } from '@angular/router';
+import { EmployeeService } from '../../services/employee.service';
+import { DeleteSeatDialogComponent } from './delete-seat-dialog/delete-seat-dialog.component';
+import { AddSeatDialogComponent } from './add-seat-dialog/add-seat-dialog.component';
 
 @Component({
   selector: 'app-floor-plans',
@@ -48,7 +51,8 @@ export class FloorPlansComponent implements OnInit {
     private floorService: FloorService,
     private dialog: MatDialog,
     private http: HttpClient,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private employeeService: EmployeeService
   ) {
     this.floors = floorService.floors;
     this.selectedFloor = floorService.selectedFloor;
@@ -67,24 +71,127 @@ export class FloorPlansComponent implements OnInit {
 
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
-        this.unassignSeat(employeeId, seatId);
+        // this.unassignSeat(employeeId, seatId);
+        console.log(this.selectedFloor()?.rooms)
       }
     });
   }
 
-  private unassignSeat(employeeId: number, seatId: number): void {
-    this.http.delete(`http://localhost:8080/api/employees/${employeeId}/unassign-seat/${seatId}`)
+  deleteOnClick(event: Event, seatId: number, seatNumber: string){
+    event.stopPropagation();
+    const dialogRef = this.dialog.open(DeleteSeatDialogComponent, {
+      width: '400px',
+      data: {
+        seatId,
+        seatNumber
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if(result){
+        this.deleteSeat(seatId);
+      }
+    });
+  }
+
+  addOnClick(roomId: number){
+    const dialogRef = this.dialog.open(AddSeatDialogComponent, {
+      width: '400px',
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if(result){
+        this.createSeat(result, roomId)
+        console.log(result, roomId);
+      }
+    })
+  }
+
+  private createSeat(seatNumber: string, roomId: number): void {
+  const seatData = {
+    seatNumber: seatNumber,
+    room: { id: roomId }
+  };
+
+  this.http.post('http://localhost:8080/api/seats', seatData)
+    .subscribe({
+      next: async () => {
+        const currentFloor = this.selectedFloorControl.value;
+        if (currentFloor !== null) {
+          await this.floorService.loadFloor(currentFloor);
+          const floor = this.selectedFloor();
+          if (floor) {
+            for (const room of floor.rooms) {
+              room.seats = await this.enrichSeatsWithEmployees(room.seats);
+            }
+          }
+        }
+        this.snackBar.open('Seat created successfully', 'Close', {
+          duration: 3000
+        });
+      },
+      error: (error) => {
+        console.error('Error creating seat:', error);
+        this.snackBar.open('Failed to create seat', 'Close', {
+          duration: 5000,
+          horizontalPosition: 'end',
+          verticalPosition: 'top',
+          panelClass: ['error-snackbar']
+        });
+      }
+    });
+}
+
+
+  private deleteSeat(seatId:number):void{
+    this.http.delete(`http://localhost:8080/api/seats/${seatId}`)
       .subscribe({
-        next: () => {
+        next: async () => {
+          const currentFloor = this.selectedFloorControl.value;
+          if (currentFloor !== null) {
+            await this.floorService.loadFloor(currentFloor);
+            const floor = this.selectedFloor();
+            if (floor) {
+              for (const room of floor.rooms) {
+                room.seats = await this.enrichSeatsWithEmployees(room.seats);
+              }
+            }
+          }
+          this.snackBar.open('Seat deleted successfully', 'Close', {
+            duration: 3000,
+          });
+        },
+        error: (error) => {
+          console.error('Error deleting seat:', error);
+          this.snackBar.open('Failed to delete seat', 'Close', {
+            duration: 5000,
+            horizontalPosition: 'end',
+            verticalPosition: 'top',
+            panelClass: ['error-snackbar']
+          });
+        }
+      });
+  }
+
+  private unassignSeat(employeeId: number, seatId: number): void {
+    this.http.delete(`http://localhost:8080/api/employees/${employeeId}/seats/${seatId}`)
+      .subscribe({
+        next: async () => {
           // Refresh the floor data
           const currentFloor = this.selectedFloorControl.value;
           if (currentFloor !== null) {
-            this.floorService.loadFloor(currentFloor);
+            await this.floorService.loadFloor(currentFloor);
+            const floor = this.selectedFloor();
+            if (floor) {
+              for (const room of floor.rooms) {
+                room.seats = await this.enrichSeatsWithEmployees(room.seats);
+              }
+            }
           }
           this.snackBar.open('Seat unassigned successfully', 'Close', {
             duration: 3000,
-            horizontalPosition: 'end',
-            verticalPosition: 'top'
+            
+            
           });
         },
         error: (error) => {
@@ -99,13 +206,20 @@ export class FloorPlansComponent implements OnInit {
       });
   }
 
-  ngOnInit(): void {
+  async ngOnInit(): Promise<void> {
     // Handle floor selection changes
-    this.selectedFloorControl.valueChanges.subscribe(floorNumber => {
+    this.selectedFloorControl.valueChanges.subscribe(async floorNumber => {
       if (floorNumber !== null) {
         this.loading = true;
         this.error = null;
-        this.floorService.loadFloor(floorNumber);
+        await this.floorService.loadFloor(floorNumber);
+        const floor = this.selectedFloor();
+        if (floor) {
+          for(const room of floor.rooms) {
+            room.seats = await this.enrichSeatsWithEmployees(room.seats);
+          }
+          console.log('Enriched seats with employees:', floor.rooms);
+        } 
         this.loading = false;
       }
     });
@@ -116,6 +230,19 @@ export class FloorPlansComponent implements OnInit {
       this.selectedFloorControl.setValue(currentFloors[0].floorNumber);
     }
   }
+
+  private enrichSeatsWithEmployees(seats: any[]): Promise<any[]> {
+  return Promise.all(seats.map(async seat => {
+    if (seat.employeeIds && seat.employeeIds.length > 0) {
+      const employees = await Promise.all(
+        seat.employeeIds.map((id: number) => this.employeeService.getEmployeeById(id).toPromise())
+      );
+      return { ...seat, employees };
+    } else {
+      return { ...seat, employees: [] };
+    }
+  }));
+}
 
   printRoomLabel(room: Room): void {
     // Create a new PDF document
