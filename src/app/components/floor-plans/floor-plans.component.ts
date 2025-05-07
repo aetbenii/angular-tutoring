@@ -77,7 +77,7 @@ export class FloorPlansComponent implements OnInit {
     });
   }
 
-  deleteOnClick(event: Event, seatId: number, seatNumber: string){
+  onDeleteClick(event: Event, seatId: number, seatNumber: string){
     event.stopPropagation();
     const dialogRef = this.dialog.open(DeleteSeatDialogComponent, {
       width: '400px',
@@ -94,7 +94,7 @@ export class FloorPlansComponent implements OnInit {
     });
   }
 
-  addOnClick(roomId: number){
+  onAddClick(roomId: number){
     const dialogRef = this.dialog.open(AddSeatDialogComponent, {
       width: '400px',
     });
