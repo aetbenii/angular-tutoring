@@ -1,9 +1,14 @@
-<div class="canvas-container" #canvasContainer>
-    
-</div>
-<div>
+<div style="display: flex; justify-content: space-between; padding-bottom: 1em;">
+    <button mat-raised-button color="primary"
+        [routerLink]="['/floor-plans']"
+    >
+        Back
+    </button>
     <button mat-raised-button color="primary"
         (click)="onSaveClick()">
         Save Map
     </button>
+</div>
+<div class="canvas-container" #canvasContainer>
+    
 </div>

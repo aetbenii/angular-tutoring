@@ -239,15 +239,19 @@ export class FloorMapComponent implements OnInit {
   }
 
   private createInfoBox(roomGroup: any, rect: any, room: any): void {
+
+
+
     const infoBox = roomGroup.append('rect')
       .attr('x', 10)
-      .attr('y', rect.attr('height'))
+      .attr('y', room.y > 200 ? rect.attr('height') : -75)
       .attr('width', rect.attr('width') - 20)
       .attr('height', 75)
       .attr('fill', 'rgb(254, 243, 205)')
       .attr('stroke', 'black')
       .attr('stroke-width', 2);
 
+      console.log(rect.attr('y'));
     const foreignObject = roomGroup.append('foreignObject')
       .attr('x', 10)
       .attr('y', infoBox.attr('y'))

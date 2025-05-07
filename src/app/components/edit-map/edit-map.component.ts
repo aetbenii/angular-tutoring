@@ -1,7 +1,7 @@
 import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, inject, OnInit, Signal, signal, ViewChild } from '@angular/core';
 import { FloorService } from '../../services/floor.service';
 import { FormControl } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterModule } from '@angular/router';
 import * as d3 from 'd3';
 import { Room } from '../../interfaces/room.interface';
 import { RoomService } from '../../services/room.service';
@@ -16,7 +16,8 @@ import { EmployeeService } from '../../services/employee.service';
   selector: 'app-edit-map',
   imports: [
     MatButtonModule,
-    MatSnackBarModule
+    MatSnackBarModule,
+    RouterModule
   ],
   templateUrl: './edit-map.component.html',
   styleUrl: './edit-map.component.scss'
@@ -436,10 +437,10 @@ export class EditMapComponent implements OnInit, AfterViewInit{
   seats.add(rect);
 }
 
-  createInfoBox(roomGroup: any, room: any): void {
+ private createInfoBox(roomGroup: any, room: any): void {
     this.infoBox = roomGroup.append('rect')
       .attr('x', 10)
-      .attr('y', room.attr('height'))
+      .attr('y', room.attr('y') > 200 ? room.attr('height') : -75)
       .attr('width', room.attr('width') - 20)
       .attr('height', 75)
       .attr('fill', 'rgb(254, 243, 205)')
