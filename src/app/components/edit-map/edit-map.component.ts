@@ -76,7 +76,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
 
         console.log(this.seats);
         console.log(this.selectedRoom())
-        // Jetzt sind beide Daten sicher da!
+        
         if (this.selectedRoom()) {
           this.initializeSvg(Number(this.floorId));
           this.loading.set(false);
@@ -92,7 +92,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
       return Promise.all(seats.map(async seat => {
         if (seat.employeeIds && seat.employeeIds.length > 0) {
           const employees = await Promise.all(
-            seat.employeeIds.map((id: number) => this.EmployeeService.getEmployeeById(id).toPromise())
+            seat.employeeIds.map((id: number) => this.EmployeeService.getEmployeeById(id))
           );
           return { ...seat, employees };
         } else {
@@ -109,24 +109,6 @@ export class EditMapComponent implements OnInit, AfterViewInit{
         y: parseFloat(translate[2]),
         width: parseFloat(this.room.attr('width')),
         height: parseFloat(this.room.attr('height')),
-      
-        // seats: Object.fromEntries(
-        //   Array.from(this.seatsGeometry).map(seat => {
-        //     const id = seat.attr('id');
-        //     const transform = seat.attr('transform');
-        //     const translate = transform.match(/translate\(([^,]+),([^)]+)\)/) || "0";
-        //     return [
-        //       id,
-        //       {
-        //         x: parseFloat(translate[1]),
-        //         y: parseFloat(translate[2]),
-        //         width: parseFloat(seat.attr('width')),
-        //         height: parseFloat(seat.attr('height')),
-        //         rotation: parseFloat(seat.attr('rotation'))
-        //       }
-        //     ];
-        //   })
-        //)
       };
       const seatsData: any[] = [];
       this.seatsGeometry.forEach((seat: any) => {
@@ -167,19 +149,9 @@ export class EditMapComponent implements OnInit, AfterViewInit{
         this.roomService.updateSeat(Number(this.roomId), Number(seat.id), seatsData[index]).subscribe({
           next: (response) => {
             console.log('Seat updated successfully:', response);
-            // this.snackBar.open('Seat updated successfully', 'Close', {
-            //   duration: 3000,
-            //   horizontalPosition: 'right',
-            //   verticalPosition: 'top',
-            // });
           },
           error: (error) => {
             console.error('Update failed:', error);
-            // this.snackBar.open('Update failed!', 'Close', {
-            //   duration: 3000,
-            //   horizontalPosition: 'right',
-            //   verticalPosition: 'top',
-            // });
           }
         })
       });
@@ -210,7 +182,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
       this.roomGroup = this.g.append('g')
       .attr('class', 'room-group')
       .attr('transform', `translate(${this.selectedRoom()?.x ?? 0}, ${this.selectedRoom()?.y ?? 0})`); // Startposition
-      // Großes Rechteck (Hintergrund)
+     
       this.room = this.roomGroup.append('rect')
         .attr('x', 0)
         .attr('y', 0)
@@ -223,56 +195,53 @@ export class EditMapComponent implements OnInit, AfterViewInit{
         this.createInfoBox.call(this, this.roomGroup, this.room);
         
         this.roomGroup.call(d3.drag() 
-        .on('start', function (event) {
-            const transform = d3.select(this).attr('transform');
+        .on('start', (event) => {
+            const transform = d3.select(this.roomGroup.node()).attr('transform');
             const translate = transform.match(/translate\(([^,]+),([^)]+)\)/);
             if (translate) {
                 event.subject.offsetX = event.x - parseFloat(translate[1]);
                 event.subject.offsetY = event.y - parseFloat(translate[2]);
             }
         })
-        .on('drag', function (event) {
+        .on('drag', (event) => {
             const newX = event.x - event.subject.offsetX;
             const newY = event.y - event.subject.offsetY;
-            d3.select(this).attr('transform', `translate(${newX}, ${newY})`);  
+            d3.select(this.roomGroup.node()).attr('transform', `translate(${newX}, ${newY})`);  
+            d3.select(this.infoBox.node()).attr('y', newY > 250 ? this.room.attr('height') : -75);
+            d3.select(this.foreignObject.node()).attr('y', newY > 250 ? this.room.attr('height') : -75);
+            
         })
-        
-
     );
 
     const handle = this.roomGroup.append('circle')
-    .attr('cx', this.selectedRoom()?.width)  // Mittelpunkt des Kreises (x = 150 + radius)
-    .attr('cy', this.selectedRoom()?.height)  // Mittelpunkt des Kreises (y = 200 + radius)
-    .attr('r', 5)  // Radius des Kreises (statt width/height)
-    .attr('fill', 'blue')  // Farbe des Resizers
-    .style('cursor', 'pointer'); // Cursor anzeigen, dass der Bereich vergrößert/verkleinert werden kann
+    .attr('cx', this.selectedRoom()?.width)
+    .attr('cy', this.selectedRoom()?.height) 
+    .attr('r', 5)  
+    .attr('fill', 'blue')
+    .style('cursor', 'pointer');
 
-// Resizing-Funktion hinzufügen
     handle.call(d3.drag()
     .on('start', (event) => {
-        // Offset für das Dragging berechnen
         const rectElement = this.room;
         event.subject.offsetX = event.x - parseFloat(rectElement.attr('x'));
         event.subject.offsetY = event.y - parseFloat(rectElement.attr('y'));
     })
     .on('drag', (event) => {
-        // Berechne die neue Breite und Höhe basierend auf der Mausbewegung
         const rectElement = this.room;
         
         let newWidth = event.x - parseFloat(rectElement.attr('x'));
         let newHeight = event.y - parseFloat(rectElement.attr('y'));
         
-        // Verhindere, dass die Größe negativ wird
-        newWidth = Math.max(newWidth, 10);  // Mindestbreite
-        newHeight = Math.max(newHeight, 10);  // Mindesthöhe
         
-        // Setze die neue Größe des Rechtecks
+        newWidth = Math.max(newWidth, 10); 
+        newHeight = Math.max(newHeight, 10);        
+        
         rectElement.attr('width', newWidth).attr('height', newHeight);
         this.infoBox.attr('y', newHeight);
         this.infoBox.attr('width', newWidth - 20);
         this.foreignObject.attr('width', this.infoBox.attr('width'));
         this.foreignObject.attr('y', newHeight);
-        // Positioniere den Resizer neu (immer an der unteren rechten Ecke)
+        
         handle.attr('cx', newWidth).attr('cy', newHeight);
     })
 );
@@ -280,9 +249,6 @@ export class EditMapComponent implements OnInit, AfterViewInit{
     this.seats.forEach((seat: Seat) => {
       this.createSmallRect.call(this,seat, this.room, this.roomGroup, this.seatsGeometry);
     });
-
-
-
       // Load the background SVG using D3's XML loader
       // This demonstrates how to load external SVG content
       d3.xml(`${this.apiUrl}/floors/${floorNumber}/svg`).then((data) => {
@@ -329,7 +295,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
     }
 
     private createSmallRect(seat: Seat, room: any, roomGroup: any, seats: Set<any>): void {
-  const rect = roomGroup.append('rect')
+    const rect = roomGroup.append('rect')
     .attr('id', seat.id)
     .attr('transform', `translate(${seat.x}, ${seat.y}) rotate(${seat.rotation}, ${seat.width / 2}, ${seat.height / 2})`)
     .attr('width', seat.width)
@@ -435,7 +401,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
       .attr('dx', '0.2em');
   }
   seats.add(rect);
-}
+    }
 
  private createInfoBox(roomGroup: any, room: any): void {
     this.infoBox = roomGroup.append('rect')
@@ -454,7 +420,6 @@ export class EditMapComponent implements OnInit, AfterViewInit{
       .attr('height', 75)
 
     const htmlContent = this.foreignObject.append('xhtml:div')
-      
       .style('height', '100%')
       .style('padding', '0 10px 0 10px')
       .style('font-size', '14px')
@@ -470,6 +435,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
 
       </div>
       `)
-
   }
+
+  
 }
