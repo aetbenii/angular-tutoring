@@ -92,7 +92,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
       return Promise.all(seats.map(async seat => {
         if (seat.employeeIds && seat.employeeIds.length > 0) {
           const employees = await Promise.all(
-            seat.employeeIds.map((id: number) => this.EmployeeService.getEmployeeById(id))
+            seat.employeeIds.map((id: number) => this.EmployeeService.getEmployeeById(id).toPromise())
           );
           return { ...seat, employees };
         } else {
@@ -237,10 +237,10 @@ export class EditMapComponent implements OnInit, AfterViewInit{
         newHeight = Math.max(newHeight, 10);        
         
         rectElement.attr('width', newWidth).attr('height', newHeight);
-        this.infoBox.attr('y', newHeight);
+        //this.infoBox.attr('y', newHeight);
         this.infoBox.attr('width', newWidth - 20);
         this.foreignObject.attr('width', this.infoBox.attr('width'));
-        this.foreignObject.attr('y', newHeight);
+        //this.foreignObject.attr('y', newHeight);
         
         handle.attr('cx', newWidth).attr('cy', newHeight);
     })
@@ -380,33 +380,34 @@ export class EditMapComponent implements OnInit, AfterViewInit{
     .attr('fill', 'black')
     .style('font-size', '12px')
     .style('pointer-events', 'none');
-
-  if (seat.employees && seat.employees.length > 1) {
-    text.append('tspan')
-      .text(seat.employees[0].fullName)
-      .attr('x', '-0.8em');
-    for (let i = 1; i < seat.employees.length; i++) {
+    
+    if (seat.employees && seat.employees.length > 1) {
       text.append('tspan')
-        .attr('y', 0)
-        .attr('dx', '1.2em')
-        .text(seat.employees[i].fullName);
+        .text(seat.employees[0].fullName)
+        .attr('x', '-0.8em');
+      for (let i = 1; i < seat.employees.length; i++) {
+        text.append('tspan')
+          .attr('y', 0)
+          .attr('dx', '1.2em')
+          .text(seat.employees[i].fullName);
+      }
+    } else if (seat.employees && seat.employees.length === 1) {
+      text.append('tspan')
+        .text(seat.employees[0].fullName)
+        .attr('dx', '0.2em');
+    } else {
+      text.append('tspan')
+        .text("Empty")
+        .attr('dx', '0.2em');
     }
-  } else if (seat.employees && seat.employees.length === 1) {
-    text.append('tspan')
-      .text(seat.employees[0].fullName)
-      .attr('dx', '0.2em');
-  } else {
-    text.append('tspan')
-      .text("Empty")
-      .attr('dx', '0.2em');
-  }
   seats.add(rect);
-    }
+  }
 
  private createInfoBox(roomGroup: any, room: any): void {
+  
     this.infoBox = roomGroup.append('rect')
       .attr('x', 10)
-      .attr('y', room.attr('y') > 200 ? room.attr('height') : -75)
+      .attr('y', (this.selectedRoom()?.y ?? 0) > 250 ? room.attr('height') : -75)
       .attr('width', room.attr('width') - 20)
       .attr('height', 75)
       .attr('fill', 'rgb(254, 243, 205)')
@@ -418,7 +419,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
       .attr('y', this.infoBox.attr('y'))
       .attr('width', this.infoBox.attr('width'))
       .attr('height', 75)
-
+  
     const htmlContent = this.foreignObject.append('xhtml:div')
       .style('height', '100%')
       .style('padding', '0 10px 0 10px')
@@ -426,16 +427,12 @@ export class EditMapComponent implements OnInit, AfterViewInit{
       .style('font-family', 'Arial, sans-serif')
       .html(`
         <div style="display: flex; flex-direction: column; gap: 0; height: 100%; justify-content: center;">
-
         <div style="text-align: center;">
           <b>${this.selectedRoom()?.name}</b> 
           <br/>
           <b>${this.selectedRoom()?.roomNumber}</b>
         </div>
-
       </div>
       `)
   }
-
-  
 }

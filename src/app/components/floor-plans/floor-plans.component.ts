@@ -71,7 +71,7 @@ export class FloorPlansComponent implements OnInit {
 
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
-        // this.unassignSeat(employeeId, seatId);
+        this.unassignSeat(employeeId, seatId);
         console.log(this.selectedFloor()?.rooms)
       }
     });
