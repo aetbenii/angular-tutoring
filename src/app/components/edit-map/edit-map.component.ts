@@ -210,6 +210,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
             d3.select(this.infoBox.node()).attr('y', newY > 250 ? this.room.attr('height') : -75);
             d3.select(this.foreignObject.node()).attr('y', newY > 250 ? this.room.attr('height') : -75);
             
+            
         })
     );
 
@@ -234,14 +235,16 @@ export class EditMapComponent implements OnInit, AfterViewInit{
         
         
         newWidth = Math.max(newWidth, 10); 
-        newHeight = Math.max(newHeight, 10);        
+        newHeight = Math.max(newHeight, 10);   
+        
+        let roomY = parseFloat(this.roomGroup.attr('transform').split(',')[1].split(')')[0]);
         
         rectElement.attr('width', newWidth).attr('height', newHeight);
-        //this.infoBox.attr('y', newHeight);
+        this.infoBox.attr('y', (roomY ?? 0) > 250 ? newHeight : -75);
         this.infoBox.attr('width', newWidth - 20);
         this.foreignObject.attr('width', this.infoBox.attr('width'));
-        //this.foreignObject.attr('y', newHeight);
-        
+        this.foreignObject.attr('y', (roomY ?? 0) > 250 ? newHeight : -75);
+        console.log('roomY:', roomY);
         handle.attr('cx', newWidth).attr('cy', newHeight);
     })
 );
@@ -399,15 +402,18 @@ export class EditMapComponent implements OnInit, AfterViewInit{
       text.append('tspan')
         .text("Empty")
         .attr('dx', '0.2em');
+        rect
+        .attr('fill', 'rgb(123, 184, 148)')
+        .attr('stroke', 'rgb(29, 112, 61)');
     }
   seats.add(rect);
   }
 
  private createInfoBox(roomGroup: any, room: any): void {
-  
+
     this.infoBox = roomGroup.append('rect')
       .attr('x', 10)
-      .attr('y', (this.selectedRoom()?.y ?? 0) > 250 ? room.attr('height') : -75)
+      .attr('y', (this.selectedRoom()?.y ?? 0) > 280 ? room.attr('height') : -75)
       .attr('width', room.attr('width') - 20)
       .attr('height', 75)
       .attr('fill', 'rgb(254, 243, 205)')

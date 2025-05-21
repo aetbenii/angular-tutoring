@@ -221,6 +221,10 @@ export class FloorMapComponent implements OnInit {
         text.append('tspan')
           .attr('dx', '0.2em')
           .text("Empty");
+
+        rect
+          .attr('fill', 'rgb(123, 184, 148)')
+          .attr('stroke', 'rgb(29, 112, 61)');
       }
     }
   }
@@ -239,8 +243,6 @@ export class FloorMapComponent implements OnInit {
   }
 
   private createInfoBox(roomGroup: any, rect: any, room: any): void {
-
-
 
     const infoBox = roomGroup.append('rect')
       .attr('x', 10)
