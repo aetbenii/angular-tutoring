@@ -167,7 +167,6 @@ export class FloorMapComponent implements OnInit {
     .attr('dy', '.35em')
     .attr('text-anchor', 'middle')
     .attr('fill', 'black')
-    .text(room.name);
 
     this.createInfoBox(roomGroup, rect, room);
 

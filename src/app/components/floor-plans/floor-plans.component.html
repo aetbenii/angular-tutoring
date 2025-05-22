@@ -40,6 +40,7 @@
           </div>
           <div class="employees-list">
             <div *ngFor="let seat of room.seats" class="seat-info">
+              
               <div class="seat-number">{{seat.seatNumber}}</div>
               <div [class.occupied]="seat.occupied" class="employee-info">
                 <ng-container *ngIf="seat.employees">

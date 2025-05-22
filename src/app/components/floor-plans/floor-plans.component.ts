@@ -217,6 +217,7 @@ export class FloorPlansComponent implements OnInit {
         if (floor) {
           for(const room of floor.rooms) {
             room.seats = await this.enrichSeatsWithEmployees(room.seats);
+            room.seats = room.seats.sort((a, b) => a.id - b.id);
           }
           console.log('Enriched seats with employees:', floor.rooms);
         } 
