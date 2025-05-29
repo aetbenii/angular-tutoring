@@ -40,6 +40,7 @@
           </div>
           <div class="employees-list">
             <div *ngFor="let seat of room.seats" class="seat-info">
+              
               <div class="seat-number">{{seat.seatNumber}}</div>
               <div [class.occupied]="seat.occupied" class="employee-info">
                 <ng-container *ngIf="seat.employees">
@@ -56,7 +57,7 @@
                   <span >
                   Vacant
                   </span>
-                  <span (click)="deleteOnClick($event, seat.id, seat.seatNumber)" style="cursor: pointer;">
+                  <span (click)="onDeleteClick($event, seat.id, seat.seatNumber)" style="cursor: pointer;">
                     <mat-icon>
                       delete
                     </mat-icon>
@@ -64,7 +65,7 @@
                 </div>
               </div>
             </div>
-            <div class="seat-info add-seat" (click)="addOnClick(room.id)">
+            <div class="seat-info add-seat" (click)="onAddClick(room.id)">
               <mat-icon>
                 <!-- chair -->
                  add

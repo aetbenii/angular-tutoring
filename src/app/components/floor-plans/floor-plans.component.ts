@@ -71,13 +71,13 @@ export class FloorPlansComponent implements OnInit {
 
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
-        // this.unassignSeat(employeeId, seatId);
+        this.unassignSeat(employeeId, seatId);
         console.log(this.selectedFloor()?.rooms)
       }
     });
   }
 
-  deleteOnClick(event: Event, seatId: number, seatNumber: string){
+  onDeleteClick(event: Event, seatId: number, seatNumber: string){
     event.stopPropagation();
     const dialogRef = this.dialog.open(DeleteSeatDialogComponent, {
       width: '400px',
@@ -94,7 +94,7 @@ export class FloorPlansComponent implements OnInit {
     });
   }
 
-  addOnClick(roomId: number){
+  onAddClick(roomId: number){
     const dialogRef = this.dialog.open(AddSeatDialogComponent, {
       width: '400px',
     });
@@ -123,6 +123,7 @@ export class FloorPlansComponent implements OnInit {
           if (floor) {
             for (const room of floor.rooms) {
               room.seats = await this.enrichSeatsWithEmployees(room.seats);
+              room.seats = room.seats.sort((a, b) => a.id - b.id);
             }
           }
         }
@@ -241,7 +242,7 @@ export class FloorPlansComponent implements OnInit {
     } else {
       return { ...seat, employees: [] };
     }
-  }));
+  })).then(seatsWithEmployees => seatsWithEmployees.sort((a, b) => a.id - b.id));
 }
 
   printRoomLabel(room: Room): void {
@@ -279,4 +280,4 @@ export class FloorPlansComponent implements OnInit {
     // Save the PDF
     doc.save(`room-${room.roomNumber}-label.pdf`);
   }
-} 
+}
