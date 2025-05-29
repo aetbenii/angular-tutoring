@@ -194,34 +194,44 @@ export class EditMapComponent implements OnInit, AfterViewInit{
 
         this.createInfoBox.call(this, this.roomGroup, this.room);
         
-        this.roomGroup.call(d3.drag() 
-        .on('start', (event) => {
-            const transform = d3.select(this.roomGroup.node()).attr('transform');
-            const translate = transform.match(/translate\(([^,]+),([^)]+)\)/);
-            if (translate) {
-                event.subject.offsetX = event.x - parseFloat(translate[1]);
-                event.subject.offsetY = event.y - parseFloat(translate[2]);
-            }
-        })
-        .on('drag', (event) => {
-            const newX = event.x - event.subject.offsetX;
-            const newY = event.y - event.subject.offsetY;
-            d3.select(this.roomGroup.node()).attr('transform', `translate(${newX}, ${newY})`);  
-            d3.select(this.infoBox.node()).attr('y', newY > 250 ? this.room.attr('height') : -75);
-            d3.select(this.foreignObject.node()).attr('y', newY > 250 ? this.room.attr('height') : -75);
-            
-            
-        })
-    );
+       
+const INFOBOX_Y_THRESHOLD = 250;
+const INFOBOX_Y_OFFSET = -75;
+const HANDLE_RADIUS = 5;
 
-    const handle = this.roomGroup.append('circle')
-    .attr('cx', this.selectedRoom()?.width)
-    .attr('cy', this.selectedRoom()?.height) 
-    .attr('r', 5)  
-    .attr('fill', 'blue')
-    .style('cursor', 'pointer');
+const getInfoBoxY = (newY: number, roomHeight: number) =>
+  newY > INFOBOX_Y_THRESHOLD ? roomHeight : INFOBOX_Y_OFFSET;
 
-    handle.call(d3.drag()
+this.roomGroup.call(
+  d3.drag()
+    .on('start', (event) => {
+      const transform = d3.select(this.roomGroup.node()).attr('transform');
+      const translate = transform.match(/translate\(([^,]+),([^)]+)\)/);
+      if (translate) {
+        event.subject.offsetX = event.x - parseFloat(translate[1]);
+        event.subject.offsetY = event.y - parseFloat(translate[2]);
+      }
+    })
+    .on('drag', (event) => {
+      const newX = event.x - event.subject.offsetX;
+      const newY = event.y - event.subject.offsetY;
+      const roomHeight = parseFloat(this.room.attr('height')) || 0;
+      const infoBoxY = getInfoBoxY(newY, roomHeight);
+
+      d3.select(this.roomGroup.node()).attr('transform', `translate(${newX}, ${newY})`);
+      d3.select(this.infoBox.node()).attr('y', infoBoxY);
+      d3.select(this.foreignObject.node()).attr('y', infoBoxY);
+    })
+);
+
+const handle = this.roomGroup.append('circle')
+  .attr('cx', this.selectedRoom()?.width ?? 0)
+  .attr('cy', this.selectedRoom()?.height ?? 0)
+  .attr('r', HANDLE_RADIUS)
+  .attr('fill', 'blue')
+  .style('cursor', 'pointer');
+
+handle.call(d3.drag()
     .on('start', (event) => {
         const rectElement = this.room;
         event.subject.offsetX = event.x - parseFloat(rectElement.attr('x'));
