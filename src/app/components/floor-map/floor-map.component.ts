@@ -22,6 +22,9 @@ import { Seat } from '../../interfaces/seat.interface';
 import { SeatInfoDialogComponent } from '../offices/seat-info-dialog/seat-info-dialog.component';
 import { EmployeeService } from '../../services/employee.service';
 import { setActiveConsumer } from '@angular/core/primitives/signals';
+import { MatInputModule } from '@angular/material/input';
+import { MatAutocompleteModule, MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
+import { catchError, EMPTY, Observable, BehaviorSubject } from 'rxjs';
 
 @Component({
   selector: 'app-floor-map',
@@ -31,6 +34,8 @@ import { setActiveConsumer } from '@angular/core/primitives/signals';
     MatCardModule,
     MatIconModule,
     MatFormFieldModule,
+    MatInputModule,
+    MatAutocompleteModule,
     MatSelectModule,
     MatProgressSpinnerModule,
     ReactiveFormsModule,
@@ -52,13 +57,15 @@ export class FloorMapComponent implements OnInit {
 
   loading = signal<boolean>(false);
   error = signal<string | null>(null);
-
+  searchControl = new FormControl<string>('');
   selectedFloorControl = new FormControl<number | null>(null);
   floors = this.floorService.floors;
+  options: string[] = [];
+  filteredNames = new BehaviorSubject<{id: number, fullName: string}[]>([]);
   selectedFloor = this.floorService.selectedFloor;
 
   constructor(
-    private EmployeeService: EmployeeService,
+    private employeeService: EmployeeService,
   ) {}
 
   ngOnInit(): void {
@@ -81,9 +88,59 @@ export class FloorMapComponent implements OnInit {
     if (currentFloors.length > 0) {
       this.selectedFloorControl.setValue(currentFloors[0].floorNumber);
     }
+
+    this.searchControl.valueChanges.subscribe(searchTerm => {
+      if(searchTerm){
+        this.employeeService.getEmployees(
+          this.searchControl.value || '',
+          0,
+          50
+        ).pipe(
+          catchError(error => {
+            this.error.set(error.message);
+            this.loading.set(false);
+            return EMPTY;
+          })
+        ).subscribe(response => {
+          console.log('Search results:', response);
+          this.filteredNames.next(response.content.map(employee => ({
+            id: employee.id,
+            fullName: employee.fullName
+          })));
+
+          // Check if we need to load more after the current batch is loaded
+          
+        });
+      }
+    });
   }
 
   ngAfterViewInit(): void {}
+
+  displayFn(employee: { id: number; fullName: string }): string {
+    return employee ? employee.fullName : '';
+  }
+
+  async onOptionClicked(object: { id: number; fullName: string }): Promise<void> {
+    console.log('Selected employee:', object);
+        this.employeeService.getEmployeeSeats(object.id).subscribe(response => {
+          this.selectedFloorControl.setValue(response.map(seat => seat.floorId)[0]);
+        });
+  }
+
+  async onOptionSelected(event: MatAutocompleteSelectedEvent) {
+    const selectedEmployee = event.option.value;
+    await this.onOptionClicked(selectedEmployee);
+    const seats = await this.employeeService.getEmployeeSeats(selectedEmployee.id).toPromise();
+    console.log('Selected employee seats:', seats);
+    // this.employeeService.getEmployeeSeats(selectedEmployee.id).subscribe(employee => {
+    //   console.log('Selected employees seats:', employee);
+    //   this.zoomOnEmployee(employee);
+    // });
+    setTimeout(() => {
+      this.zoomOnEmployee(seats);
+    }, 500);
+  }
 
   private loadFloorPlan(floorNumber: number): void {
     this.loading.set(true);
@@ -112,6 +169,8 @@ export class FloorMapComponent implements OnInit {
     const backgroundGroup = this.svg.append('g')
       .attr('class', 'background-layer');
 
+    
+
     this.g = this.svg.append('g')
       .attr('class', 'interactive-layer');
 
@@ -130,6 +189,8 @@ export class FloorMapComponent implements OnInit {
       this.error.set('Error loading floor plan SVG');
       console.error('Error loading background SVG:', error);
     });
+
+    
   }
 
   private configureZoom(backgroundGroup: any): void {
@@ -140,14 +201,31 @@ export class FloorMapComponent implements OnInit {
         this.g.attr('transform', event.transform);
       });
     this.svg.call(this.zoom);
-    const initialTransform = d3.zoomIdentity.translate(100, 100).scale(0.8);
+    const initialTransform = d3.zoomIdentity.translate(-50, 0).scale(0.8);
     this.svg.call(this.zoom.transform, initialTransform);
+  }
+
+  private zoomOnEmployee(seat: any): void {
+    const viewBox = this.svg.attr('viewBox');
+    const rectNode = d3.select('#room-group-' + seat[0].roomId).node() as SVGRectElement;
+    if (!rectNode) {
+      console.error('No rectangle found for room ID:', seat[0].roomId);
+      return;
+    } else {
+      console.log('Found group:', seat[0].roomId);
+      console.log('Rectangle node:', rectNode.transform);
+    }
+    const x = rectNode.transform.baseVal.getItem(0).matrix.e + seat[0].x;
+    const y = rectNode.transform.baseVal.getItem(0).matrix.f + seat[0].y;
+    this.svg.transition()
+      .duration(500)
+      .call(this.zoom.transform, d3.zoomIdentity.translate(x * (-1), y * (-1)).scale(1.5));
   }
 
   private drawRooms(g: any):void {
     this.selectedFloor()?.rooms.forEach(room => {
       const roomGroup = g.append('g')
-      .attr('class', 'room-group');
+      .attr('id', 'room-group-'+ room.id);
       if(room.x !== 0 && room.y !== 0){
         this.drawRoom(roomGroup, room);
       }
@@ -182,6 +260,7 @@ export class FloorMapComponent implements OnInit {
     .attr('class', 'room-group');
 
     const rect = group.append('rect')
+      .attr('id', `rect-${seat.id}`)
       .attr('transform', `translate(${seat.x}, ${seat.y}), rotate(${seat.rotation}, ${seat.width/2}, ${seat.height/2})`)
       .attr('width', seat.width)
       .attr('height', seat.height)
@@ -232,7 +311,7 @@ export class FloorMapComponent implements OnInit {
     return Promise.all(seats.map(async seat => {
       if (seat.employeeIds && seat.employeeIds.length > 0) {
         const employees = await Promise.all(
-          seat.employeeIds.map((id: number) => this.EmployeeService.getEmployeeById(id).toPromise())
+          seat.employeeIds.map((id: number) => this.employeeService.getEmployeeById(id).toPromise())
         );
         return { ...seat, employees };
       } else {
@@ -252,8 +331,7 @@ export class FloorMapComponent implements OnInit {
       .attr('stroke', 'black')
       .attr('stroke-width', 2);
 
-      console.log(rect.attr('y'));
-    const foreignObject = roomGroup.append('foreignObject')
+      const foreignObject = roomGroup.append('foreignObject')
       .attr('x', 10)
       .attr('y', infoBox.attr('y'))
       .attr('width', infoBox.attr('width'))
@@ -275,3 +353,5 @@ export class FloorMapComponent implements OnInit {
       `)
   }
 }
+
+

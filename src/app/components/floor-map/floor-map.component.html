@@ -11,6 +11,25 @@
       </mat-select>
       <mat-icon matSuffix>apartment</mat-icon>
     </mat-form-field>
+    <mat-form-field>
+      <mat-label>Search by name or occupation</mat-label>
+      <input matInput
+        #searchInput
+        [formControl]="searchControl"
+        [matAutocomplete]="auto"
+        placeholder="Type to search...">
+      <mat-icon matSuffix>search</mat-icon>
+      <mat-autocomplete 
+        #auto="matAutocomplete" 
+        [displayWith]="displayFn" 
+        (optionSelected)="onOptionSelected($event)">
+        <mat-option *ngFor="let option of filteredNames | async" 
+        [value]="option"
+        >
+          {{option.fullName}}
+        </mat-option>
+      </mat-autocomplete>
+    </mat-form-field>
   </mat-card>
   <div class="canvas-container" #canvasContainer>
     
