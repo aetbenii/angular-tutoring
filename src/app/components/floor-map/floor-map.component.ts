@@ -24,7 +24,7 @@ import { EmployeeService } from '../../services/employee.service';
 import { setActiveConsumer } from '@angular/core/primitives/signals';
 import { MatInputModule } from '@angular/material/input';
 import { MatAutocompleteModule, MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
-import { catchError, EMPTY, Observable, BehaviorSubject } from 'rxjs';
+import { catchError, EMPTY, Observable, BehaviorSubject, firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-floor-map',
@@ -66,6 +66,7 @@ export class FloorMapComponent implements OnInit {
 
   constructor(
     private employeeService: EmployeeService,
+    private snackBar: MatSnackBar
   ) {}
 
   ngOnInit(): void {
@@ -102,14 +103,10 @@ export class FloorMapComponent implements OnInit {
             return EMPTY;
           })
         ).subscribe(response => {
-          console.log('Search results:', response);
           this.filteredNames.next(response.content.map(employee => ({
             id: employee.id,
             fullName: employee.fullName
           })));
-
-          // Check if we need to load more after the current batch is loaded
-          
         });
       }
     });
@@ -121,25 +118,38 @@ export class FloorMapComponent implements OnInit {
     return employee ? employee.fullName : '';
   }
 
-  async onOptionClicked(object: { id: number; fullName: string }): Promise<void> {
-    console.log('Selected employee:', object);
-        this.employeeService.getEmployeeSeats(object.id).subscribe(response => {
-          this.selectedFloorControl.setValue(response.map(seat => seat.floorId)[0]);
-        });
-  }
-
-  async onOptionSelected(event: MatAutocompleteSelectedEvent) {
+  async onEmployeeSelected(event: MatAutocompleteSelectedEvent) {
     const selectedEmployee = event.option.value;
-    await this.onOptionClicked(selectedEmployee);
-    const seats = await this.employeeService.getEmployeeSeats(selectedEmployee.id).toPromise();
-    console.log('Selected employee seats:', seats);
-    // this.employeeService.getEmployeeSeats(selectedEmployee.id).subscribe(employee => {
-    //   console.log('Selected employees seats:', employee);
-    //   this.zoomOnEmployee(employee);
-    // });
-    setTimeout(() => {
-      this.zoomOnEmployee(seats);
-    }, 500);
+    console.log('Selected employee:', selectedEmployee);
+    this.employeeService.getEmployeeSeats(selectedEmployee.id).subscribe({
+      next: async (response) => {
+        if(!response){
+          this.error.set('Unexpected response format.');
+          return;
+        }
+        if( response.length === 0){
+          console.error('No seats found for employee:', selectedEmployee);
+          this.snackBar.open('No seat found for employee: ' + selectedEmployee.fullName, 'Close', {
+            duration: 3000,
+            horizontalPosition: 'right',
+            verticalPosition: 'top',
+          });
+          return;
+        }
+        this.error.set(null);
+        const firstFloorId = response[0].floorId;
+        if( this.selectedFloorControl.value !== firstFloorId){
+          this.selectedFloorControl.setValue(firstFloorId);
+        }
+        const seats = await firstValueFrom(this.employeeService.getEmployeeSeats(selectedEmployee.id));
+        setTimeout(() => {
+          this.zoomOnEmployee(seats);
+        }, 250);
+      },
+      error: (error) => {
+        console.error('Error loading employee seats:', error);
+      }
+    });
   }
 
   private loadFloorPlan(floorNumber: number): void {

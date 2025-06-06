@@ -74,8 +74,8 @@ export class EditMapComponent implements OnInit, AfterViewInit{
         this.seats = await Promise.all(seatPromises);
         this.seats = await this.enrichSeatsWithEmployees(this.seats);
 
-        console.log(this.seats);
-        console.log(this.selectedRoom())
+        // console.log(this.seats);
+        // console.log(this.selectedRoom())
         
         if (this.selectedRoom()) {
           this.initializeSvg(Number(this.floorId));
