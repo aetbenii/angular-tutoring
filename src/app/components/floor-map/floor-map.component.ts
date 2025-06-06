@@ -206,20 +206,23 @@ export class FloorMapComponent implements OnInit {
   }
 
   private zoomOnEmployee(seat: any): void {
-    const viewBox = this.svg.attr('viewBox');
+    const container = this.canvasContainer.nativeElement;
+    if (!container) {
+      console.error('Canvas container not found');
+      return;
+    }
+
     const rectNode = d3.select('#room-group-' + seat[0].roomId).node() as SVGRectElement;
     if (!rectNode) {
       console.error('No rectangle found for room ID:', seat[0].roomId);
       return;
-    } else {
-      console.log('Found group:', seat[0].roomId);
-      console.log('Rectangle node:', rectNode.transform);
     }
-    const x = rectNode.transform.baseVal.getItem(0).matrix.e + seat[0].x;
-    const y = rectNode.transform.baseVal.getItem(0).matrix.f + seat[0].y;
+    const x = rectNode.transform.baseVal.getItem(0).matrix.e;
+    const y = rectNode.transform.baseVal.getItem(0).matrix.f;
     this.svg.transition()
-      .duration(500)
-      .call(this.zoom.transform, d3.zoomIdentity.translate(x * (-1), y * (-1)).scale(1.5));
+      .duration(750)
+      .call(this.zoom.transform, d3.zoomIdentity.translate((x*-1.5 + 820) - rectNode.getBBox().width/2, y*-1.5 + 150).scale(1.5));
+    
   }
 
   private drawRooms(g: any):void {
