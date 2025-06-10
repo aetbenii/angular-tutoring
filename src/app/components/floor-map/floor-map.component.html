@@ -24,9 +24,8 @@
         [displayWith]="displayFn" 
         (optionSelected)="onEmployeeSelected($event)">
         <mat-option *ngFor="let option of filteredNames | async" 
-        [value]="option"
-        >
-          {{option.fullName}}
+        [value]="option">
+          {{option.fullName}} <span *ngIf="option.floorName">- {{option.floorName}}</span>
         </mat-option>
       </mat-autocomplete>
     </mat-form-field>

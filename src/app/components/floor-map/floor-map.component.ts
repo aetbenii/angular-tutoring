@@ -61,7 +61,7 @@ export class FloorMapComponent implements OnInit {
   selectedFloorControl = new FormControl<number | null>(null);
   floors = this.floorService.floors;
   options: string[] = [];
-  filteredNames = new BehaviorSubject<{id: number, fullName: string}[]>([]);
+  filteredNames = new BehaviorSubject<{id: number, fullName: string, floorName: string}[]>([]);
   selectedFloor = this.floorService.selectedFloor;
 
   constructor(
@@ -73,7 +73,6 @@ export class FloorMapComponent implements OnInit {
     this.selectedFloorControl.valueChanges.subscribe(floorNumber => {
       if (floorNumber !== null) {
         this.loading.set(true);
-
         this.floorService.loadFloor(floorNumber).then(() => {
           this.loadFloorPlan(floorNumber);
           this.loading.set(false);
@@ -103,10 +102,29 @@ export class FloorMapComponent implements OnInit {
             return EMPTY;
           })
         ).subscribe(response => {
-          this.filteredNames.next(response.content.map(employee => ({
-            id: employee.id,
-            fullName: employee.fullName
-          })));
+          const expandedList: { id: number; fullName: string; floorName: string; seatId: number }[] = [];
+          response.content.forEach(employee => {
+            if (employee.seatIds.length > 1) {
+              employee.seatIds.forEach(seatId => {
+                this.floorService.getSeatInfo(seatId).subscribe(seat => {
+                  expandedList.push({
+                    id: employee.id,
+                    fullName: employee.fullName,
+                    floorName: seat.floorName,
+                    seatId: seat.id
+                  });
+                });
+              });
+            } else {
+              expandedList.push({
+                id: employee.id,
+                fullName: employee.fullName,
+                floorName: "",
+                seatId: employee.seatIds[0]
+              });
+            }
+          });
+          this.filteredNames.next(expandedList);
         });
       }
     });
@@ -123,6 +141,7 @@ export class FloorMapComponent implements OnInit {
     console.log('Selected employee:', selectedEmployee);
     this.employeeService.getEmployeeSeats(selectedEmployee.id).subscribe({
       next: async (response) => {
+        console.log('Employee seats response:', response);
         if(!response){
           this.error.set('Unexpected response format.');
           return;
@@ -137,14 +156,20 @@ export class FloorMapComponent implements OnInit {
           return;
         }
         this.error.set(null);
-        const firstFloorId = response[0].floorId;
-        if( this.selectedFloorControl.value !== firstFloorId){
-          this.selectedFloorControl.setValue(firstFloorId);
-        }
-        const seats = await firstValueFrom(this.employeeService.getEmployeeSeats(selectedEmployee.id));
-        setTimeout(() => {
-          this.zoomOnEmployee(seats);
-        }, 250);
+        response.map(seat => {
+          if(seat.id == event.option.value.seatId){
+            if( this.selectedFloorControl.value !== seat.floorId){
+              this.selectedFloorControl.setValue(seat.floorId);
+            }
+            setTimeout(() => {
+              this.zoomOnEmployee(seat);
+            }, 250);
+            return;
+          }
+        });
+        // const firstFloorId = response[0].floorId;
+        //const seats = await firstValueFrom(this.employeeService.getEmployeeSeats(selectedEmployee.id));
+       
       },
       error: (error) => {
         console.error('Error loading employee seats:', error);
@@ -222,9 +247,9 @@ export class FloorMapComponent implements OnInit {
       return;
     }
 
-    const rectNode = d3.select('#room-group-' + seat[0].roomId).node() as SVGRectElement;
+    const rectNode = d3.select('#room-group-' + seat.roomId).node() as SVGRectElement;
     if (!rectNode) {
-      console.error('No rectangle found for room ID:', seat[0].roomId);
+      console.error('No rectangle found for room ID:', seat.roomId);
       return;
     }
     const x = rectNode.transform.baseVal.getItem(0).matrix.e;
