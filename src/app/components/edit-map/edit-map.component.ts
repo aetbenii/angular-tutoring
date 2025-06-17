@@ -195,7 +195,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
         this.createInfoBox.call(this, this.roomGroup, this.room);
         
        
-const INFOBOX_Y_THRESHOLD = 250;
+const INFOBOX_Y_THRESHOLD = this.floorId == '2' ? 400 : 250;
 const INFOBOX_Y_OFFSET = -75;
 const HANDLE_RADIUS = 5;
 
@@ -250,10 +250,10 @@ handle.call(d3.drag()
         let roomY = parseFloat(this.roomGroup.attr('transform').split(',')[1].split(')')[0]);
         
         rectElement.attr('width', newWidth).attr('height', newHeight);
-        this.infoBox.attr('y', (roomY ?? 0) > 250 ? newHeight : -75);
+        this.infoBox.attr('y', (roomY ?? 0) > (this.floorId == '2' ? 400 : 250) ? newHeight : -75);
         this.infoBox.attr('width', newWidth - 20);
         this.foreignObject.attr('width', this.infoBox.attr('width'));
-        this.foreignObject.attr('y', (roomY ?? 0) > 250 ? newHeight : -75);
+        this.foreignObject.attr('y', (roomY ?? 0) > (this.floorId == '2' ? 400 : 250) ? newHeight : -75);
         console.log('roomY:', roomY);
         handle.attr('cx', newWidth).attr('cy', newHeight);
     })
@@ -423,7 +423,7 @@ handle.call(d3.drag()
 
     this.infoBox = roomGroup.append('rect')
       .attr('x', 10)
-      .attr('y', (this.selectedRoom()?.y ?? 0) > 280 ? room.attr('height') : -75)
+      .attr('y', (this.selectedRoom()?.y ?? 0) > 300 ? room.attr('height') : -75)
       .attr('width', room.attr('width') - 20)
       .attr('height', 75)
       .attr('fill', 'rgb(254, 243, 205)')
