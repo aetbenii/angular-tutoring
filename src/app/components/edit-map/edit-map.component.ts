@@ -11,6 +11,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { firstValueFrom, forkJoin } from 'rxjs';
 import { EmployeeService } from '../../services/employee.service';
+import { text } from 'd3';
 
 @Component({
   selector: 'app-edit-map',
@@ -25,7 +26,6 @@ import { EmployeeService } from '../../services/employee.service';
 export class EditMapComponent implements OnInit, AfterViewInit{
   selectedRoomControl = new FormControl<number | null>(null);
   selectedRoom!: Signal<Room | null>;
-  isDeleteModeActive = signal<boolean>(false);
   floorId: string | null;
   roomId: string | null;
   
@@ -37,6 +37,9 @@ export class EditMapComponent implements OnInit, AfterViewInit{
     private g: any;
     private roomGroup: any;
     private room: any;
+    private seat: any;
+    private seatGroup: any;
+    private text: any;
     private seatsGeometry: Set<d3.Selection<SVGRectElement, any, null, undefined>> = new Set();
     private zoom: any;
     private seats: any[] = [];
@@ -44,7 +47,6 @@ export class EditMapComponent implements OnInit, AfterViewInit{
     private foreignObject: any;
     private apiUrl = 'http://localhost:8080/api';
     
-  
     // Signals for reactive state management
     loading = signal<boolean>(false);
     error = signal<string | null>(null);
@@ -73,9 +75,6 @@ export class EditMapComponent implements OnInit, AfterViewInit{
 
         this.seats = await Promise.all(seatPromises);
         this.seats = await this.enrichSeatsWithEmployees(this.seats);
-
-        console.log(this.seats);
-        console.log(this.selectedRoom())
         
         if (this.selectedRoom()) {
           this.initializeSvg(Number(this.floorId));
@@ -181,7 +180,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
       
       this.roomGroup = this.g.append('g')
       .attr('class', 'room-group')
-      .attr('transform', `translate(${this.selectedRoom()?.x ?? 0}, ${this.selectedRoom()?.y ?? 0})`); // Startposition
+      .attr('transform', `translate(${this.selectedRoom()?.x ?? 0}, ${this.selectedRoom()?.y ?? 0})`);
      
       this.room = this.roomGroup.append('rect')
         .attr('x', 0)
@@ -195,7 +194,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
         this.createInfoBox.call(this, this.roomGroup, this.room);
         
        
-const INFOBOX_Y_THRESHOLD = 250;
+const INFOBOX_Y_THRESHOLD = this.floorId == '2' ? 750 : 250;
 const INFOBOX_Y_OFFSET = -75;
 const HANDLE_RADIUS = 5;
 
@@ -250,23 +249,29 @@ handle.call(d3.drag()
         let roomY = parseFloat(this.roomGroup.attr('transform').split(',')[1].split(')')[0]);
         
         rectElement.attr('width', newWidth).attr('height', newHeight);
-        this.infoBox.attr('y', (roomY ?? 0) > 250 ? newHeight : -75);
+        this.infoBox.attr('y', (roomY ?? 0) > (this.floorId == '2' ? 400 : 250) ? newHeight : -75);
         this.infoBox.attr('width', newWidth - 20);
         this.foreignObject.attr('width', this.infoBox.attr('width'));
-        this.foreignObject.attr('y', (roomY ?? 0) > 250 ? newHeight : -75);
+        this.foreignObject.attr('y', (roomY ?? 0) > (this.floorId == '2' ? 400 : 250) ? newHeight : -75);
         console.log('roomY:', roomY);
         handle.attr('cx', newWidth).attr('cy', newHeight);
     })
-);
+  );
+
+    this.seatGroup = this.roomGroup.append('g')
+      .attr('class', 'seat-group'); // Startposition
 
     this.seats.forEach((seat: Seat) => {
-      this.createSmallRect.call(this,seat, this.room, this.roomGroup, this.seatsGeometry);
+      const seatItemGroup = this.seatGroup.append('g')
+        .attr('class', 'seat-item')
+        .attr('id', seat.id);
+      this.createSmallRect.call(this,seat, this.room, seatItemGroup, this.seatsGeometry);
     });
       // Load the background SVG using D3's XML loader
       // This demonstrates how to load external SVG content
       d3.xml(`${this.apiUrl}/floors/${floorNumber}/svg`).then((data) => {
         this.loading.set(false);
-        
+        console.log(data);
         const backgroundSvg = data.documentElement;
         // Extract the viewBox from the original SVG to maintain proportions
         const viewBox = backgroundSvg.getAttribute('viewBox');
@@ -278,6 +283,12 @@ handle.call(d3.drag()
         
         // Append the background SVG content to our background layer
         backgroundGroup.node().appendChild(backgroundSvg);
+        
+        if(this.floorId == '2'){
+          d3.select(backgroundSvg)
+          .attr('width', 3300)
+          .attr('height', 1325);
+        }
         
         // Configure D3 zoom behavior for pan and zoom functionality
         this.configureZoom(backgroundGroup);
@@ -307,8 +318,8 @@ handle.call(d3.drag()
       this.svg.call(this.zoom.transform, initialTransform);
     }
 
-    private createSmallRect(seat: Seat, room: any, roomGroup: any, seats: Set<any>): void {
-    const rect = roomGroup.append('rect')
+    private createSmallRect(seat: Seat, room: any, seatItemGroup: any, seats: Set<any>): void {
+    const rect = seatItemGroup.append('rect')
     .attr('id', seat.id)
     .attr('transform', `translate(${seat.x}, ${seat.y}) rotate(${seat.rotation}, ${seat.width / 2}, ${seat.height / 2})`)
     .attr('width', seat.width)
@@ -356,8 +367,8 @@ handle.call(d3.drag()
           const centerX = seat.width / 2;
           const centerY = seat.height / 2;
           rectElement.attr('transform', `translate(${newX}, ${newY}) rotate(${currentRotation}, ${centerX}, ${centerY})`);
-          const textRotation = text.attr('rotation');
-          text.attr('transform', `translate(${newX + seat.width / 2}, ${newY + seat.height / 2}) rotate(${textRotation})`);
+          const group = d3.select(seatItemGroup.node());
+          group.select('foreignObject').attr('transform', `translate(${newX}, ${newY}) rotate(${currentRotation}, ${centerX}, ${centerY})`);
         })
     )
     .on('click', (event: any) => {
@@ -371,59 +382,83 @@ handle.call(d3.drag()
         const x = parseFloat(translate[1]);
         const y = parseFloat(translate[2]);
         let newRotation = parseInt(rectElement.attr('rotation')) + 90;
+        
         if (newRotation == 180) newRotation = 0;
         rectElement.attr("transform", `translate(${x}, ${y}) rotate(${newRotation}, ${centerX}, ${centerY})`);
         rectElement.attr('rotation', newRotation);
-        text.attr("transform", `translate(${x + seat.width / 2}, ${y + seat.height / 2}) rotate(${newRotation})`);
-        text.attr('rotation', newRotation);
+        const seatItem = d3.select(seatItemGroup.node());
+        seatItem.select('foreignObject').attr('transform', `translate(${x}, ${y}) rotate(${newRotation}, ${centerX}, ${centerY})`)
       }
     });
 
-  // Text-Element mit transform erstellen statt mit x/y
-  const text = roomGroup.append('text')
-    .attr('transform',
-      seat.rotation === 0
-        ? `translate(${seat.x + seat.width / 2}, ${seat.y + seat.height / 2})`
-        : `translate(${seat.x + seat.width / 2}, ${seat.y + seat.height / 2}) rotate(${seat.rotation})`
-    )
-    .attr('text-anchor', 'middle')
-    .attr('alignment-baseline', 'middle')
-    .attr('rotation', seat.rotation)
-    .style('writing-mode', 'sideways-lr')
-    .attr('fill', 'black')
-    .style('font-size', '12px')
-    .style('pointer-events', 'none');
-    
-    if (seat.employees && seat.employees.length > 1) {
-      text.append('tspan')
-        .text(seat.employees[0].fullName)
-        .attr('x', '-0.8em');
-      for (let i = 1; i < seat.employees.length; i++) {
-        text.append('tspan')
-          .attr('y', 0)
-          .attr('dx', '1.2em')
-          .text(seat.employees[i].fullName);
-      }
-    } else if (seat.employees && seat.employees.length === 1) {
-      text.append('tspan')
-        .text(seat.employees[0].fullName)
-        .attr('dx', '0.2em');
+    const text = this.createText(seat, seatItemGroup);
+    console.log(seatItemGroup.node())
+    seats.add(rect);
+  }
+
+  private createText(seat: Seat, seatItemGroup: any): any {
+    const text = seatItemGroup.append('foreignObject')
+      .attr('transform', `translate(${seat.x}, ${seat.y})`)
+      .attr('transform', seat.rotation === 0 ? `
+        translate(${seat.x}, ${seat.y})` : 
+        `translate(${seat.x} , ${seat.y}) rotate(${seat.rotation}, ${seat.width / 2}, ${seat.height / 2})`)
+      .attr('width', seat.width)
+      .attr('height', seat.height)
+      .attr('stroke', 'black')
+      .attr('fill', 'none')
+      .style('pointer-events', 'none');
+      
+    let htmlContent = '';
+    if (seat.employees && seat.employees.length > 0) {
+      htmlContent = `
+        <div style="
+          width: 100%; height: 100%;
+          display: flex; 
+          justify-content: center; 
+          align-items: center;
+        ">
+          <div style="
+            text-align: center; 
+            font-size: 9px;
+            writing-mode: sideways-lr; 
+          ">
+            ${seat.employees.map((e: any) => e.fullName).join('<br/>')}
+          </div>
+        </div>
+      `;
     } else {
-      text.append('tspan')
-        .text("Empty")
-        .attr('dx', '0.2em');
-        rect
-        .attr('fill', 'rgb(123, 184, 148)')
-        .attr('stroke', 'rgb(29, 112, 61)');
+      htmlContent = `
+        <div style="
+          width: 100%; height: 100%;
+          display: flex; flex-direction: column; justify-content: center; align-items: stretch;
+          transform: rotate(-90deg);
+          transform-origin: center;
+        ">
+          <div style="
+            width: 100%; text-align: center;
+            font-weight: bold; font-size: 9px; 
+          ">
+            Empty
+          </div>
+        </div>
+      `;
     }
-  seats.add(rect);
+
+    text.append('xhtml:div')
+      .style('width', '100%')
+      .style('height', '100%')
+      .style('padding', '0px')
+      .style('font-size', '12px')
+      .style('font-family', 'Arial, sans-serif')
+      .html(htmlContent);
+
+    return text;
   }
 
  private createInfoBox(roomGroup: any, room: any): void {
-
     this.infoBox = roomGroup.append('rect')
       .attr('x', 10)
-      .attr('y', (this.selectedRoom()?.y ?? 0) > 280 ? room.attr('height') : -75)
+      .attr('y', (this.selectedRoom()?.y ?? 0) > 900 ? room.attr('height') : -75)
       .attr('width', room.attr('width') - 20)
       .attr('height', 75)
       .attr('fill', 'rgb(254, 243, 205)')
@@ -438,17 +473,17 @@ handle.call(d3.drag()
   
     const htmlContent = this.foreignObject.append('xhtml:div')
       .style('height', '100%')
-      .style('padding', '0 10px 0 10px')
+      .style('padding', '0px')
       .style('font-size', '14px')
       .style('font-family', 'Arial, sans-serif')
       .html(`
         <div style="display: flex; flex-direction: column; gap: 0; height: 100%; justify-content: center;">
-        <div style="text-align: center;">
-          <b>${this.selectedRoom()?.name}</b> 
-          <br/>
-          <b>${this.selectedRoom()?.roomNumber}</b>
+          <div style="text-align: center;">
+            <b>${this.selectedRoom()?.name}</b> 
+            <br/>
+            <b>${this.selectedRoom()?.roomNumber}</b>
+          </div>
         </div>
-      </div>
       `)
   }
 }

@@ -23,7 +23,7 @@ import { HeaderComponent } from './components/header/header.component';
 
     main {
       flex: 1;
-      padding: 2rem;
+      padding: 0 2rem;
       background-color: #f5f5f5;
     }
   `]

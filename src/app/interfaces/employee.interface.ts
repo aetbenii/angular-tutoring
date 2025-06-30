@@ -6,4 +6,5 @@ export interface Employee {
   occupation: string;
   createdAt: number[];
   seats: Seat[];
+  seatIds: number[];
 } 
