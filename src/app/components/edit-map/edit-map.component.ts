@@ -75,9 +75,6 @@ export class EditMapComponent implements OnInit, AfterViewInit{
 
         this.seats = await Promise.all(seatPromises);
         this.seats = await this.enrichSeatsWithEmployees(this.seats);
-
-        // console.log(this.seats);
-        // console.log(this.selectedRoom())
         
         if (this.selectedRoom()) {
           this.initializeSvg(Number(this.floorId));
@@ -183,7 +180,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
       
       this.roomGroup = this.g.append('g')
       .attr('class', 'room-group')
-      .attr('transform', `translate(${this.selectedRoom()?.x ?? 0}, ${this.selectedRoom()?.y ?? 0})`); // Startposition
+      .attr('transform', `translate(${this.selectedRoom()?.x ?? 0}, ${this.selectedRoom()?.y ?? 0})`);
      
       this.room = this.roomGroup.append('rect')
         .attr('x', 0)
@@ -197,7 +194,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
         this.createInfoBox.call(this, this.roomGroup, this.room);
         
        
-const INFOBOX_Y_THRESHOLD = this.floorId == '2' ? 400 : 250;
+const INFOBOX_Y_THRESHOLD = this.floorId == '2' ? 750 : 250;
 const INFOBOX_Y_OFFSET = -75;
 const HANDLE_RADIUS = 5;
 
@@ -290,8 +287,7 @@ handle.call(d3.drag()
         if(this.floorId == '2'){
           d3.select(backgroundSvg)
           .attr('width', 3300)
-          .attr('height', 1325)
-          .attr('transform', 'translate(0,730) scale(0.14,-0.14)');
+          .attr('height', 1325);
         }
         
         // Configure D3 zoom behavior for pan and zoom functionality
@@ -323,11 +319,6 @@ handle.call(d3.drag()
     }
 
     private createSmallRect(seat: Seat, room: any, seatItemGroup: any, seats: Set<any>): void {
-      //    DEBUG
-
-      console.log('Creating seat:', seat.id, 'at position:', seat.x, seat.y, 'with rotation:', seat.rotation);
-      console.log(seat);
-
     const rect = seatItemGroup.append('rect')
     .attr('id', seat.id)
     .attr('transform', `translate(${seat.x}, ${seat.y}) rotate(${seat.rotation}, ${seat.width / 2}, ${seat.height / 2})`)
@@ -376,12 +367,8 @@ handle.call(d3.drag()
           const centerX = seat.width / 2;
           const centerY = seat.height / 2;
           rectElement.attr('transform', `translate(${newX}, ${newY}) rotate(${currentRotation}, ${centerX}, ${centerY})`);
-          // const textRotation = this.text.attr('rotation');
-          //this.text.attr('transform', `translate(${newX}, ${newY})`);
           const group = d3.select(seatItemGroup.node());
           group.select('foreignObject').attr('transform', `translate(${newX}, ${newY}) rotate(${currentRotation}, ${centerX}, ${centerY})`);
-          //handle.attr('cx', newX + parseFloat(rectElement.attr('width'))).attr('cy', newY + parseFloat(rectElement.attr('height')));
-          
         })
     )
     .on('click', (event: any) => {
@@ -399,8 +386,6 @@ handle.call(d3.drag()
         if (newRotation == 180) newRotation = 0;
         rectElement.attr("transform", `translate(${x}, ${y}) rotate(${newRotation}, ${centerX}, ${centerY})`);
         rectElement.attr('rotation', newRotation);
-        //this.text.attr("transform", `translate(${x + seat.width / 2}, ${y + seat.height / 2}) rotate(${newRotation})`);
-        //text.attr('rotation', newRotation);
         const seatItem = d3.select(seatItemGroup.node());
         seatItem.select('foreignObject').attr('transform', `translate(${x}, ${y}) rotate(${newRotation}, ${centerX}, ${centerY})`)
       }
@@ -414,14 +399,15 @@ handle.call(d3.drag()
   private createText(seat: Seat, seatItemGroup: any): any {
     const text = seatItemGroup.append('foreignObject')
       .attr('transform', `translate(${seat.x}, ${seat.y})`)
+      .attr('transform', seat.rotation === 0 ? `
+        translate(${seat.x}, ${seat.y})` : 
+        `translate(${seat.x} , ${seat.y}) rotate(${seat.rotation}, ${seat.width / 2}, ${seat.height / 2})`)
       .attr('width', seat.width)
       .attr('height', seat.height)
       .attr('stroke', 'black')
       .attr('fill', 'none')
       .style('pointer-events', 'none');
       
-
-    // HTML für alle Mitarbeiter oder "Empty"
     let htmlContent = '';
     if (seat.employees && seat.employees.length > 0) {
       htmlContent = `
@@ -433,7 +419,7 @@ handle.call(d3.drag()
         ">
           <div style="
             text-align: center; 
-            font-size: 11px;
+            font-size: 9px;
             writing-mode: sideways-lr; 
           ">
             ${seat.employees.map((e: any) => e.fullName).join('<br/>')}
@@ -450,7 +436,7 @@ handle.call(d3.drag()
         ">
           <div style="
             width: 100%; text-align: center;
-            font-weight: bold; font-size: 11px; 
+            font-weight: bold; font-size: 9px; 
           ">
             Empty
           </div>
@@ -470,10 +456,9 @@ handle.call(d3.drag()
   }
 
  private createInfoBox(roomGroup: any, room: any): void {
-
     this.infoBox = roomGroup.append('rect')
       .attr('x', 10)
-      .attr('y', (this.selectedRoom()?.y ?? 0) > 300 ? room.attr('height') : -75)
+      .attr('y', (this.selectedRoom()?.y ?? 0) > 900 ? room.attr('height') : -75)
       .attr('width', room.attr('width') - 20)
       .attr('height', 75)
       .attr('fill', 'rgb(254, 243, 205)')

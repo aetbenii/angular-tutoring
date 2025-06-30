@@ -155,6 +155,15 @@ export class FloorMapComponent implements OnInit {
           });
           return;
         }
+        if(response[0].x === 0 && response[0].y === 0){
+          this.error.set('No Room or Seat created yet');
+          this.snackBar.open('No Room or Seat created yet', 'Close', {
+            duration: 3000,
+            horizontalPosition: 'right',
+            verticalPosition: 'top',
+          });
+          return;
+        }
         this.error.set(null);
         response.map(seat => {
           if(seat.id == event.option.value.seatId){
@@ -167,9 +176,6 @@ export class FloorMapComponent implements OnInit {
             return;
           }
         });
-        // const firstFloorId = response[0].floorId;
-        //const seats = await firstValueFrom(this.employeeService.getEmployeeSeats(selectedEmployee.id));
-       
       },
       error: (error) => {
         console.error('Error loading employee seats:', error);
@@ -217,6 +223,11 @@ export class FloorMapComponent implements OnInit {
         this.svg.attr('viewBox', viewBox);
       }
       backgroundGroup.node().appendChild(backgroundSvg);
+      if(floorNumber == 2){
+                d3.select(backgroundSvg)
+                .attr('width', 3300)
+                .attr('height', 1325);
+              }
       this.configureZoom(backgroundGroup);
       this.drawRooms(this.g);
     }).catch(error => {
@@ -307,41 +318,63 @@ export class FloorMapComponent implements OnInit {
       .attr('rotation', seat.rotation)
       .attr('fill', 'rgb(221, 235, 247)');
 
-    const text = roomGroup.append('text')
-      .attr('transform', seat.rotation === 0 ? `
-        translate(${seat.x + seat.width / 2}, ${seat.y + seat.height / 2})` : 
-        `translate(${seat.x + seat.width / 2} , ${seat.y + seat.height / 2}) rotate(${seat.rotation})`)
-      .attr('text-anchor', 'middle')
-      .attr('fill', 'black')
-      .attr('alignment-baseline', 'middle') 
-      .style('writing-mode', 'sideways-lr')
-      .style('font-size', '12px')
+    const text = group.append('foreignObject')
+      .attr('transform', seat.rotation === 0
+        ? `translate(${seat.x}, ${seat.y})`
+        : `translate(${seat.x}, ${seat.y}) rotate(${seat.rotation}, ${seat.width / 2}, ${seat.height / 2})`)
+      .attr('width', seat.width)
+      .attr('height', seat.height)
+      .attr('stroke', 'black')
+      .attr('fill', 'none')
       .style('pointer-events', 'none');
-      
-    if (seat.employees && seat.employees.length > 1) {
-      text.append('tspan')
-        .text(seat.employees[0].fullName)
-        .attr('x', '-0.8em');
-      for (let i = 1; i < seat.employees.length; i++) {
-        text.append('tspan')
-          .attr('y', 0)
-          .attr('dx', '1.2em')
-          .text(seat.employees[i].fullName);
-      }
-    }  else {
-      if (seat.employees && seat.employees.length === 1) {
-        text.append('tspan')
-          .attr('dx', '0.2em')
-          .text(seat.employees[0].fullName);
-      } else {
-        text.append('tspan')
-          .attr('dx', '0.2em')
-          .text("Empty");
 
-        rect
-          .attr('fill', 'rgb(123, 184, 148)')
-          .attr('stroke', 'rgb(29, 112, 61)');
-      }
+    let htmlContent = '';
+    if (seat.employees && seat.employees.length > 0) {
+      htmlContent = `
+        <div style="
+          width: 100%; height: 100%;
+          display: flex; 
+          justify-content: center; 
+          align-items: center;
+        ">
+          <div style="
+            text-align: center; 
+            font-size: 10px;
+            writing-mode: sideways-lr;
+          ">
+            ${seat.employees.map((e: any) => e.fullName).join('<br/>')}
+          </div>
+        </div>
+      `;
+    } else {
+      htmlContent = `
+        <div style="
+          width: 100%; height: 100%;
+          display: flex; flex-direction: column; justify-content: center; align-items: stretch;
+          transform: rotate(-90deg);
+          transform-origin: center;
+        ">
+          <div style="
+            width: 100%; text-align: center;
+            font-weight: bold; font-size: 9px; 
+          ">
+            Empty
+          </div>
+        </div>
+      `;
+    }
+
+    text.append('xhtml:div')
+      .style('width', '100%')
+      .style('height', '100%')
+      .style('padding', '0px')
+      .style('font-family', 'Arial')
+      .html(htmlContent);
+
+    if (!seat.employees || seat.employees.length === 0) {
+      rect
+        .attr('fill', 'rgb(123, 184, 148)')
+        .attr('stroke', 'rgb(29, 112, 61)');
     }
   }
 
