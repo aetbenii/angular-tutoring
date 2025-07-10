@@ -1,29 +1,14 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatIconModule } from '@angular/material/icon';
-import { MatSnackBar } from '@angular/material/snack-bar';
-import { Subscription, interval } from 'rxjs';
-import { AuthService, UserRole } from '../../auth/auth.service';
+import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
+import { MatChipsModule } from '@angular/material/chips';
+import { AuthService } from '../../auth/auth.service';
 import { environment } from '../../../environments/environment';
-
-interface DebugInfo {
-  isAuthenticated?: boolean;
-  isAdmin?: boolean;
-  accountCount?: number;
-  hasToken?: boolean;
-  userInfo?: unknown;
-  profile?: unknown;
-  idTokenClaims?: unknown;
-  accessToken?: string;
-  roles?: UserRole[];
-  msalConfig?: unknown;
-  allAccounts?: unknown;
-  errors?: Array<{ timestamp: Date; message: string; stack?: string }>;
-}
 
 @Component({
   selector: 'app-debug',
@@ -34,434 +19,268 @@ interface DebugInfo {
     MatButtonModule,
     MatExpansionModule,
     MatTabsModule,
-    MatIconModule
+    MatIconModule,
+    MatSnackBarModule,
+    MatChipsModule
   ],
-  template: `
-    <div class="debug-container" *ngIf="!environment.production">
-      <mat-card class="debug-card">
-        <mat-card-header>
-          <mat-card-title>
-            <mat-icon>bug_report</mat-icon>
-            Authentication Debug Panel
-          </mat-card-title>
-          <mat-card-subtitle>
-            Development Mode Only - Last Updated: {{ lastUpdate | date:'medium' }}
-          </mat-card-subtitle>
-        </mat-card-header>
-
-        <mat-card-content>
-          <div class="debug-actions">
-            <button mat-raised-button color="primary" (click)="refreshDebugInfo()">
-              <mat-icon>refresh</mat-icon>
-              Refresh Debug Info
-            </button>
-            <button mat-raised-button color="accent" (click)="copyToClipboard()">
-              <mat-icon>content_copy</mat-icon>
-              Copy Debug Info
-            </button>
-            <button mat-raised-button 
-                    [color]="autoRefresh ? 'warn' : 'basic'" 
-                    (click)="toggleAutoRefresh()">
-              <mat-icon>{{ autoRefresh ? 'pause' : 'play_arrow' }}</mat-icon>
-              {{ autoRefresh ? 'Stop' : 'Start' }} Auto Refresh
-            </button>
-          </div>
-
-          <mat-tab-group>
-            <!-- Authentication Status Tab -->
-            <mat-tab label="Auth Status">
-              <div class="debug-section">
-                <h3>Authentication Status</h3>
-                <div class="status-grid">
-                  <div class="status-item">
-                    <span class="label">Is Authenticated:</span>
-                    <span class="value" [class.success]="debugInfo.isAuthenticated" 
-                          [class.error]="!debugInfo.isAuthenticated">
-                      {{ debugInfo.isAuthenticated ? 'YES' : 'NO' }}
-                    </span>
-                  </div>
-                  <div class="status-item">
-                    <span class="label">Is Admin:</span>
-                    <span class="value" [class.success]="debugInfo.isAdmin">
-                      {{ debugInfo.isAdmin ? 'YES' : 'NO' }}
-                    </span>
-                  </div>
-                  <div class="status-item">
-                    <span class="label">Active Accounts:</span>
-                    <span class="value">{{ debugInfo.accountCount }}</span>
-                  </div>
-                  <div class="status-item">
-                    <span class="label">Has Token:</span>
-                    <span class="value" [class.success]="debugInfo.hasToken">
-                      {{ debugInfo.hasToken ? 'YES' : 'NO' }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </mat-tab>
-
-            <!-- User Info Tab -->
-            <mat-tab label="User Info">
-              <div class="debug-section">
-                <h3>User Information</h3>
-                <mat-expansion-panel>
-                  <mat-expansion-panel-header>
-                    <mat-panel-title>Basic User Info</mat-panel-title>
-                  </mat-expansion-panel-header>
-                  <pre class="json-display">{{ debugInfo.userInfo | json }}</pre>
-                </mat-expansion-panel>
-                
-                <mat-expansion-panel>
-                  <mat-expansion-panel-header>
-                    <mat-panel-title>User Profile</mat-panel-title>
-                  </mat-expansion-panel-header>
-                  <pre class="json-display">{{ debugInfo.profile | json }}</pre>
-                </mat-expansion-panel>
-              </div>
-            </mat-tab>
-
-            <!-- Token Claims Tab -->
-            <mat-tab label="Token Claims">
-              <div class="debug-section">
-                <h3>JWT Token Claims</h3>
-                <div class="token-info">
-                  <div class="token-section">
-                    <h4>ID Token Claims</h4>
-                    <pre class="json-display">{{ debugInfo.idTokenClaims | json }}</pre>
-                  </div>
-                  
-                  <div class="token-section" *ngIf="debugInfo.accessToken">
-                    <h4>Access Token Preview</h4>
-                    <div class="token-preview">
-                      <strong>Token (First 50 chars):</strong>
-                      <code>{{ debugInfo.accessToken.substring(0, 50) }}...</code>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </mat-tab>
-
-            <!-- Roles & Permissions Tab -->
-            <mat-tab label="Roles & Permissions">
-              <div class="debug-section">
-                <h3>User Roles & Permissions</h3>
-                <div class="roles-section">
-                  <div class="role-list">
-                    <h4>Roles ({{ (debugInfo.roles || []).length }})</h4>
-                    <div class="role-items">
-                      <mat-card *ngFor="let role of (debugInfo.roles || [])" class="role-card">
-                        <mat-card-header>
-                          <mat-card-title>{{ role.name }}</mat-card-title>
-                        </mat-card-header>
-                        <mat-card-content>
-                          <div class="permissions-list">
-                            <strong>Permissions:</strong>
-                            <ul>
-                              <li *ngFor="let permission of role.permissions">
-                                {{ permission }}
-                              </li>
-                            </ul>
-                          </div>
-                        </mat-card-content>
-                      </mat-card>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </mat-tab>
-
-            <!-- MSAL Internal State Tab -->
-            <mat-tab label="MSAL State">
-              <div class="debug-section">
-                <h3>MSAL Internal State</h3>
-                <mat-expansion-panel>
-                  <mat-expansion-panel-header>
-                    <mat-panel-title>MSAL Configuration</mat-panel-title>
-                  </mat-expansion-panel-header>
-                  <pre class="json-display">{{ debugInfo.msalConfig | json }}</pre>
-                </mat-expansion-panel>
-                
-                <mat-expansion-panel>
-                  <mat-expansion-panel-header>
-                    <mat-panel-title>All Accounts</mat-panel-title>
-                  </mat-expansion-panel-header>
-                  <pre class="json-display">{{ debugInfo.allAccounts | json }}</pre>
-                </mat-expansion-panel>
-              </div>
-            </mat-tab>
-
-            <!-- Error Log Tab -->
-            <mat-tab label="Error Log">
-              <div class="debug-section">
-                <h3>Recent Errors</h3>
-                <div class="error-log">
-                  <div *ngFor="let error of (debugInfo.errors || [])" class="error-item">
-                    <div class="error-timestamp">{{ error.timestamp | date:'medium' }}</div>
-                    <div class="error-message">{{ error.message }}</div>
-                    <div class="error-stack" *ngIf="error.stack">
-                      <pre>{{ error.stack }}</pre>
-                    </div>
-                  </div>
-                  <div *ngIf="(debugInfo.errors || []).length === 0" class="no-errors">
-                    No recent errors logged.
-                  </div>
-                </div>
-              </div>
-            </mat-tab>
-          </mat-tab-group>
-        </mat-card-content>
-      </mat-card>
-    </div>
-
-    <!-- Production Warning -->
-    <div class="production-warning" *ngIf="environment.production">
-      <mat-card class="warning-card">
-        <mat-card-content>
-          <h2>⚠️ Debug Component Disabled</h2>
-          <p>The debug component is automatically disabled in production builds for security reasons.</p>
-        </mat-card-content>
-      </mat-card>
-    </div>
-  `,
-  styles: [`
-    .debug-container {
-      padding: 20px;
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-
-    .debug-card {
-      margin-bottom: 20px;
-    }
-
-    .debug-actions {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-    }
-
-    .debug-section {
-      padding: 16px;
-    }
-
-    .status-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 16px;
-      margin-bottom: 20px;
-    }
-
-    .status-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 8px 12px;
-      border: 1px solid #e0e0e0;
-      border-radius: 4px;
-    }
-
-    .label {
-      font-weight: 500;
-    }
-
-    .value {
-      font-family: monospace;
-      font-weight: bold;
-    }
-
-    .value.success {
-      color: #4caf50;
-    }
-
-    .value.error {
-      color: #f44336;
-    }
-
-    .json-display {
-      background: #f5f5f5;
-      padding: 16px;
-      border-radius: 4px;
-      font-family: monospace;
-      font-size: 12px;
-      line-height: 1.4;
-      overflow-x: auto;
-      max-height: 400px;
-      overflow-y: auto;
-    }
-
-    .token-section {
-      margin-bottom: 20px;
-    }
-
-    .token-preview {
-      background: #f5f5f5;
-      padding: 12px;
-      border-radius: 4px;
-      margin-top: 8px;
-    }
-
-    .role-card {
-      margin-bottom: 16px;
-    }
-
-    .permissions-list ul {
-      margin: 8px 0;
-      padding-left: 20px;
-    }
-
-    .error-log {
-      max-height: 400px;
-      overflow-y: auto;
-    }
-
-    .error-item {
-      border: 1px solid #f44336;
-      border-radius: 4px;
-      padding: 12px;
-      margin-bottom: 12px;
-      background: #ffebee;
-    }
-
-    .error-timestamp {
-      font-size: 12px;
-      color: #666;
-      margin-bottom: 4px;
-    }
-
-    .error-message {
-      font-weight: 500;
-      color: #f44336;
-      margin-bottom: 8px;
-    }
-
-    .error-stack {
-      font-family: monospace;
-      font-size: 11px;
-      color: #333;
-    }
-
-    .no-errors {
-      text-align: center;
-      color: #666;
-      font-style: italic;
-    }
-
-    .production-warning {
-      padding: 20px;
-      max-width: 600px;
-      margin: 0 auto;
-    }
-
-    .warning-card {
-      background: #fff3cd;
-      border: 1px solid #ffeaa7;
-    }
-  `]
+  templateUrl: './debug.component.html',
+  styleUrls: ['./debug.component.scss']
 })
-export class DebugComponent implements OnInit, OnDestroy {
+export class DebugComponent implements OnInit {
+  idToken: string | null = null;
+  accessToken: string | null = null;
+  decodedIdToken: any = null;
+  decodedAccessToken: any = null;
+  userInfo: any = null;
+  isLoading = false;
   environment = environment;
-  debugInfo: DebugInfo = {};
-  lastUpdate: Date = new Date();
-  autoRefresh = false;
-  private subscription = new Subscription();
 
   constructor(
     private authService: AuthService,
     private snackBar: MatSnackBar
   ) {}
 
-  ngOnInit(): void {
-    if (!environment.production) {
-      this.loadDebugInfo();
-      
-      // Subscribe to auth service changes
-      this.subscription.add(
-        this.authService.loginStatus$.subscribe(() => {
-          this.loadDebugInfo();
-        })
-      );
-    }
+  async ngOnInit() {
+    await this.loadTokens();
+    this.loadUserInfo();
   }
 
-  ngOnDestroy(): void {
-    this.subscription.unsubscribe();
-  }
-
-  async loadDebugInfo(): Promise<void> {
+  async loadTokens() {
+    this.isLoading = true;
     try {
+      console.log('🐛 Debug Component: Loading tokens...');
+      
+      // Get access token from your AuthService
+      this.accessToken = await this.authService.getAccessToken();
+      
+      // Get user info which contains ID token claims
       const userInfo = this.authService.getUserInfo();
-      const profile = this.authService.getCurrentUserProfile();
-      const accessToken = await this.authService.getAccessToken();
-      
-      this.debugInfo = {
-        // Authentication Status
-        isAuthenticated: this.authService.isLoggedIn(),
-        isAdmin: this.authService.isAdmin(),
-        accountCount: this.authService['msalService'].instance.getAllAccounts().length,
-        hasToken: !!accessToken,
-        
-        // User Information
-        userInfo: userInfo,
-        profile: profile,
-        
-        // Token Information
-        idTokenClaims: userInfo?.idTokenClaims,
-        accessToken: accessToken || undefined,
-        
-        // Roles & Permissions
-        roles: this.authService.getUserRoles(),
-        
-        // MSAL Internal State
-        msalConfig: this.authService['msalService'].instance.getConfiguration(),
-        allAccounts: this.authService['msalService'].instance.getAllAccounts(),
-        
-        // Error Log (you can implement error tracking)
-        errors: this.getRecentErrors()
-      };
-      
-      this.lastUpdate = new Date();
+      if (userInfo?.idToken) {
+        this.idToken = userInfo.idToken;
+      } else {
+        // Try to get ID token from idTokenClaims if available
+        console.log('🐛 Debug Component: No direct idToken, checking claims...');
+      }
+
+      console.log('🐛 Debug Component: ID Token length:', this.idToken?.length || 'null');
+      console.log('🐛 Debug Component: Access Token length:', this.accessToken?.length || 'null');
+
+      if (this.idToken) {
+        this.decodedIdToken = this.decodeJWT(this.idToken);
+        console.log('🐛 Debug Component: Decoded ID Token:', this.decodedIdToken);
+      }
+
+      if (this.accessToken) {
+        this.decodedAccessToken = this.decodeJWT(this.accessToken);
+        console.log('🐛 Debug Component: Decoded Access Token:', this.decodedAccessToken);
+      } else {
+        console.warn('🐛 Debug Component: Access token is null/undefined');
+      }
     } catch (error) {
-      console.error('Error loading debug info:', error);
-      this.debugInfo.errors = this.debugInfo.errors || [];
-      this.debugInfo.errors.unshift({
-        timestamp: new Date(),
-        message: 'Failed to load debug info',
-        stack: error instanceof Error ? error.stack : String(error)
-      });
+      console.error('🐛 Debug Component: Error loading tokens:', error);
+      this.snackBar.open('Error loading tokens', 'Close', { duration: 3000 });
+    } finally {
+      this.isLoading = false;
     }
   }
 
-  refreshDebugInfo(): void {
-    this.loadDebugInfo();
-    this.snackBar.open('Debug info refreshed', 'Close', { duration: 2000 });
+  loadUserInfo() {
+    this.userInfo = this.authService.getUserInfo();
+    console.log('🐛 Debug Component: User Info:', this.userInfo);
   }
 
-  copyToClipboard(): void {
-    const debugData = JSON.stringify(this.debugInfo, null, 2);
-    navigator.clipboard.writeText(debugData).then(() => {
-      this.snackBar.open('Debug info copied to clipboard', 'Close', { duration: 2000 });
+  async refreshTokens() {
+    await this.loadTokens();
+    this.loadUserInfo();
+    this.snackBar.open('Tokens refreshed', 'Close', { duration: 2000 });
+  }
+
+  async checkB2CConfiguration() {
+    console.log('🔍 === B2C CONFIGURATION CHECK ===');
+    
+    // Get current MSAL config
+    const config = (this.authService as any).msalService.instance.getConfiguration();
+    console.log('🔍 Current MSAL Configuration:', config);
+    
+    // Check B2C specific settings
+    console.log('🔍 B2C Authority Analysis:', {
+      authority: config.auth.authority,
+      isB2C: config.auth.authority?.includes('b2clogin.com'),
+      tenant: config.auth.authority?.match(/https:\/\/(.+?)\.b2clogin\.com/)?.[1],
+      policy: config.auth.authority?.split('/').pop()
+    });
+    
+    // Check if we have accounts and what claims they have
+    const accounts = (this.authService as any).msalService.instance.getAllAccounts();
+    if (accounts.length > 0) {
+      const account = accounts[0];
+      console.log('🔍 Account Authority Type:', account.authorityType);
+      console.log('🔍 Account Environment:', account.environment);
+      
+      if (account.idTokenClaims) {
+        console.log('🔍 Available Claims in ID Token:', Object.keys(account.idTokenClaims));
+        console.log('🔍 Token Issuer (iss):', account.idTokenClaims['iss']);
+        console.log('🔍 Token Audience (aud):', account.idTokenClaims['aud']);
+        console.log('🔍 Available Scopes (scp):', account.idTokenClaims['scp']);
+        console.log('🔍 App ID (appid):', account.idTokenClaims['appid']);
+      }
+    }
+    
+    // Check localStorage for any B2C related entries
+    const b2cKeys = Object.keys(localStorage).filter(key => 
+      key.includes('b2c') || key.includes('B2C') || key.includes('testb2c01siag')
+    );
+    console.log('🔍 B2C-related localStorage keys:', b2cKeys);
+    
+    // Check for user profile
+    const userProfile = this.authService.getCurrentUserProfile();
+    console.log('🔍 Current User Profile:', userProfile);
+    console.log('🔍 Is Admin:', this.authService.isAdmin());
+    console.log('🔍 User Roles:', this.authService.getUserRoles());
+    
+    console.log('🔍 === B2C RECOMMENDATIONS ===');
+    console.log('🔍 1. Verify the scope is configured in your B2C App Registration');
+    console.log('🔍 2. Check that user_access scope is exposed by your API');
+    console.log('🔍 3. Ensure the user has consented to the scope');
+    console.log('🔍 4. Verify the App Registration has API permissions configured');
+    console.log('🔍 5. Check that /api/auth/profile endpoint is working');
+    
+    this.snackBar.open('B2C Configuration checked - see console for details', 'Close', { duration: 3000 });
+  }
+
+  async checkAPIScopes() {
+    console.log('🔍 === API SCOPE VERIFICATION ===');
+    
+    const expectedScope = environment.msal.apiScope;
+    console.log('🔍 Expected scope:', expectedScope);
+    
+    // Check if we have an account with ID token claims
+    const accounts = (this.authService as any).msalService.instance.getAllAccounts();
+    if (accounts.length > 0) {
+      const account = accounts[0];
+      if (account.idTokenClaims) {
+        console.log('🔍 === ID TOKEN ANALYSIS ===');
+        console.log('🔍 Token Audience (aud):', account.idTokenClaims['aud']);
+        console.log('🔍 Token Issuer (iss):', account.idTokenClaims['iss']);
+        console.log('🔍 Available Scopes (scp):', account.idTokenClaims['scp']);
+        console.log('🔍 App ID in token (appid):', account.idTokenClaims['appid']);
+        
+        // Check if our expected scope appears anywhere in the token
+        const tokenString = JSON.stringify(account.idTokenClaims);
+        const hasExpectedScope = tokenString.includes('user_access');
+        console.log('🔍 Does ID token contain "user_access"?', hasExpectedScope);
+        
+        if (!hasExpectedScope) {
+          console.log('⚠️ WARNING: user_access scope not found in ID token claims');
+          console.log('💡 This suggests the scope might not be properly exposed in B2C');
+        }
+      }
+    }
+    
+    // Test profile endpoint
+    try {
+      console.log('🔍 === PROFILE ENDPOINT TEST ===');
+      console.log('🔍 Testing profile endpoint...');
+      
+      // Force reload user profile to test the endpoint
+      await (this.authService as any).loadUserProfile();
+      const profile = this.authService.getCurrentUserProfile();
+      
+      if (profile) {
+        console.log('✅ Profile endpoint working! Profile:', profile);
+        console.log('🔍 Profile has isAdmin field:', profile.isAdmin !== undefined);
+        console.log('🔍 Profile roles:', profile.roles);
+      } else {
+        console.log('❌ Profile endpoint returned no data');
+      }
+    } catch (error) {
+      console.log('❌ Profile endpoint test failed:', error);
+    }
+    
+    // Try to make a direct request to the B2C metadata endpoint
+    try {
+      console.log('🔍 === B2C METADATA CHECK ===');
+      const authority = environment.msal.authority;
+      const metadataUrl = `${authority}/v2.0/.well-known/openid_configuration`;
+      console.log('🔍 Checking B2C metadata at:', metadataUrl);
+      
+      const response = await fetch(metadataUrl);
+      const metadata = await response.json();
+      console.log('🔍 B2C Metadata scopes_supported:', metadata.scopes_supported);
+      console.log('🔍 B2C Metadata claims_supported:', metadata.claims_supported);
+      
+      if (metadata.scopes_supported) {
+        const hasUserAccessScope = metadata.scopes_supported.some((scope: string) => 
+          scope.includes('user_access')
+        );
+        console.log('🔍 Does B2C metadata support user_access scope?', hasUserAccessScope);
+      }
+    } catch (error) {
+      console.log('🔍 Could not fetch B2C metadata:', error);
+    }
+    
+    console.log('🔍 === MANUAL VERIFICATION STEPS ===');
+    console.log('🔍 1. Go to Azure Portal → Azure AD B2C → App registrations');
+    console.log('🔍 2. Find app:', environment.msal.clientId);
+    console.log('🔍 3. Click "Expose an API"');
+    console.log('🔍 4. Verify Application ID URI is set');
+    console.log('🔍 5. Verify "user_access" scope is defined and enabled');
+    console.log('🔍 6. Check scope format matches exactly:', expectedScope);
+    console.log('🔍 7. Verify /api/auth/profile endpoint exists and returns user data');
+    
+    this.snackBar.open('API Scope verification completed - check console', 'Close', { duration: 3000 });
+  }
+
+  async forceReAuthentication() {
+    this.snackBar.open('Re-authenticating...', 'Close', { duration: 2000 });
+    try {
+      await this.authService.logout();
+    } catch (error) {
+      console.error('Error during re-authentication:', error);
+      this.snackBar.open('Re-authentication failed - check console', 'Close', { duration: 3000 });
+    }
+  }
+
+  copyToClipboard(text: string, tokenType: string) {
+    navigator.clipboard.writeText(text).then(() => {
+      this.snackBar.open(`${tokenType} copied to clipboard`, 'Close', { duration: 2000 });
     });
   }
 
-  toggleAutoRefresh(): void {
-    this.autoRefresh = !this.autoRefresh;
-    
-    if (this.autoRefresh) {
-      this.subscription.add(
-        interval(5000).subscribe(() => {
-          this.loadDebugInfo();
-        })
-      );
-      this.snackBar.open('Auto refresh enabled (5s interval)', 'Close', { duration: 2000 });
-    } else {
-      this.snackBar.open('Auto refresh disabled', 'Close', { duration: 2000 });
-    }
+  formatJson(obj: any): string {
+    return JSON.stringify(obj, null, 2);
   }
 
-  private getRecentErrors(): Array<{ timestamp: Date; message: string; stack?: string }> {
-    // Implement error tracking if needed
-    // This could be connected to a global error handler
-    return [];
+  getTokenExpiration(token: any): string {
+    if (!token || !token.exp) return 'N/A';
+    const expDate = new Date(token.exp * 1000);
+    const now = new Date();
+    const isExpired = expDate < now;
+    const status = isExpired ? ' (EXPIRED)' : '';
+    return expDate.toLocaleString() + status;
+  }
+
+  getTokenScopes(token: any): string[] {
+    if (!token) return [];
+    return token.scp ? token.scp.split(' ') : (token.scope ? token.scope.split(' ') : []);
+  }
+
+  getIssuedAt(token: any): string {
+    if (!token || !token.iat) return 'N/A';
+    return new Date(token.iat * 1000).toLocaleString();
+  }
+
+  private decodeJWT(token: string): any {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      return JSON.parse(jsonPayload);
+    } catch (error) {
+      console.error('Error decoding JWT:', error);
+      return null;
+    }
   }
 }

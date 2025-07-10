@@ -267,36 +267,47 @@ handle.call(d3.drag()
         .attr('id', seat.id);
       this.createSmallRect.call(this,seat, this.room, seatItemGroup, this.seatsGeometry);
     });
-      // Load the background SVG using D3's XML loader
-      // This demonstrates how to load external SVG content
-      d3.xml(`${this.apiUrl}/floors/${floorNumber}/svg`).then((data) => {
-        this.loading.set(false);
-        console.log(data);
-        const backgroundSvg = data.documentElement;
-        // Extract the viewBox from the original SVG to maintain proportions
-        const viewBox = backgroundSvg.getAttribute('viewBox');
-        
-        // Set the viewBox on our main SVG to match the background
-        if (viewBox) {
-          this.svg.attr('viewBox', viewBox);
+      // Load the background SVG using Angular HttpClient (which goes through auth interceptor)
+      console.log(`Loading SVG from: ${this.apiUrl}/floors/${floorNumber}/svg`);
+      this.http.get(`${this.apiUrl}/floors/${floorNumber}/svg`, { 
+        responseType: 'text',
+        headers: { 'Accept': 'image/svg+xml' }
+      }).subscribe({
+        next: (svgText) => {
+          this.loading.set(false);
+          
+          // Parse the SVG text into a DOM element
+          const parser = new DOMParser();
+          const svgDoc = parser.parseFromString(svgText, 'image/svg+xml');
+          const backgroundSvg = svgDoc.documentElement;
+          
+          // Extract the viewBox from the original SVG to maintain proportions
+          const viewBox = backgroundSvg.getAttribute('viewBox');
+          
+          console.log('SVG loaded successfully, viewBox:', viewBox);
+          
+          // Set the viewBox on our main SVG to match the background
+          if (viewBox) {
+            this.svg.attr('viewBox', viewBox);
+          }
+          
+          // Append the background SVG content to our background layer
+          backgroundGroup.node().appendChild(backgroundSvg);
+          
+          if(this.floorId == '2'){
+            d3.select(backgroundSvg)
+              .attr('width', 3300)
+              .attr('height', 1325);
+          }
+          
+          // Configure D3 zoom behavior for pan and zoom functionality
+          this.configureZoom(backgroundGroup);
+        },
+        error: (error) => {
+          this.loading.set(false);
+          this.error.set('Error loading floor plan SVG');
+          console.error('Error loading background SVG:', error);
         }
-        
-        // Append the background SVG content to our background layer
-        backgroundGroup.node().appendChild(backgroundSvg);
-        
-        if(this.floorId == '2'){
-          d3.select(backgroundSvg)
-          .attr('width', 3300)
-          .attr('height', 1325);
-        }
-        
-        // Configure D3 zoom behavior for pan and zoom functionality
-        this.configureZoom(backgroundGroup);
-        
-      }).catch(error => {
-        this.loading.set(false);
-        this.error.set('Error loading floor plan SVG');
-        console.error('Error loading background SVG:', error);
       });
     }
     

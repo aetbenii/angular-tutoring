@@ -4,53 +4,43 @@
     <span class="brand-text">Office Management</span>
   </div>
   
-  <!-- Spacer to push user menu to the right -->
-  <span class="spacer"></span>
-  
-  <!-- User profile menu -->
-  <div class="user-section" *ngIf="isAuthenticated">
-    <!-- Debug button - only show in development -->
-    <button mat-icon-button 
-            *ngIf="!environment.production" 
-            routerLink="/debug"
-            matTooltip="Debug Panel">
-      <mat-icon>bug_report</mat-icon>
-    </button>
-    
-    <!-- User menu -->
-    <button mat-icon-button [matMenuTriggerFor]="userMenu" class="user-menu-trigger">
-      <mat-icon>account_circle</mat-icon>
-    </button>
-    
-    <mat-menu #userMenu="matMenu">
-      <div class="user-info">
-        <div class="user-name">{{ getUserDisplayName() }}</div>
-        <div class="user-email" *ngIf="userProfile?.email">{{ userProfile?.email }}</div>
-        <div class="user-roles" *ngIf="userProfile?.roles && (userProfile?.roles?.length || 0) > 0">
-          <span class="role-badge" *ngFor="let role of userProfile?.roles || []">
-            {{ role.name }}
-          </span>
-        </div>
-      </div>
+  <!-- Authentication section -->
+  <div class="spacer"></div>
+  <div class="auth-section">
+    @if (isAuthenticated) {
+      <!-- Debug button - preserve existing functionality -->
+      @if (!environment.production) {
+        <button mat-icon-button 
+                routerLink="/debug"
+                matTooltip="Debug Panel"
+                class="debug-btn">
+          <mat-icon>bug_report</mat-icon>
+        </button>
+      }
       
-      <mat-divider></mat-divider>
-      
-      <button mat-menu-item (click)="logout()">
+      <span class="user-info">
+        Welcome, {{ displayName }}
+        @if (isAdmin) {
+          <mat-icon class="admin-icon">admin_panel_settings</mat-icon>
+        }
+      </span>
+      <button mat-raised-button color="warn" (click)="logout()" class="logout-btn">
         <mat-icon>logout</mat-icon>
-        <span>Sign Out</span>
+        Logout
       </button>
-    </mat-menu>
+    }
   </div>
 </mat-toolbar>
 
 <nav mat-tab-nav-bar [tabPanel]="tabPanel" backgroundColor="primary">
-  <a mat-tab-link
-     *ngFor="let link of navLinks"
-     [routerLink]="link.path"
-     routerLinkActive #rla="routerLinkActive"
-     [active]="rla.isActive"
-     [routerLinkActiveOptions]="{exact: false}">
-    {{link.label}}
-  </a>
+  @for (link of navLinks; track link.path) {
+    <a mat-tab-link
+       [routerLink]="link.path"
+       routerLinkActive #rla="routerLinkActive"
+       [active]="rla.isActive"
+       [routerLinkActiveOptions]="{exact: false}">
+      {{link.label}}
+    </a>
+  }
 </nav>
 <mat-tab-nav-panel #tabPanel></mat-tab-nav-panel>

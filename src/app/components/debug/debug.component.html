@@ -1,0 +1,199 @@
+<div class="debug-container">
+  <mat-card class="header-card">
+    <mat-card-header>
+      <mat-card-title>
+        <mat-icon>bug_report</mat-icon>
+        Authentication Debug Panel
+      </mat-card-title>
+      <mat-card-subtitle>View and analyze JWT tokens</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-actions>
+      <button mat-raised-button color="primary" (click)="refreshTokens()" [disabled]="isLoading">
+        <mat-icon>refresh</mat-icon>
+        Refresh Tokens
+      </button>
+      <button mat-raised-button color="accent" (click)="checkB2CConfiguration()">
+        <mat-icon>settings</mat-icon>
+        Check B2C Config
+      </button>
+      <button mat-raised-button color="accent" (click)="checkAPIScopes()">
+        <mat-icon>api</mat-icon>
+        Check API Scopes
+      </button>
+      <button mat-raised-button (click)="forceReAuthentication()">
+        <mat-icon>refresh</mat-icon>
+        Force Re-auth
+      </button>
+    </mat-card-actions>
+  </mat-card>
+
+  <mat-tab-group class="tokens-tabs">
+    <!-- ID Token Tab -->
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <mat-icon>account_circle</mat-icon>
+        ID Token
+      </ng-template>
+      
+      <div class="tab-content">
+        <mat-card *ngIf="idToken; else noIdToken">
+          <mat-card-header>
+            <mat-card-title>ID Token</mat-card-title>
+            <mat-card-subtitle>Used for user identification</mat-card-subtitle>
+          </mat-card-header>
+          
+          <mat-card-content>
+            <!-- Token Info -->
+            <div class="token-info" *ngIf="decodedIdToken">
+              <p><strong>Issuer:</strong> {{ decodedIdToken.iss }}</p>
+              <p><strong>Subject:</strong> {{ decodedIdToken.sub }}</p>
+              <p><strong>Audience:</strong> {{ decodedIdToken.aud }}</p>
+              <p><strong>Expires:</strong> {{ getTokenExpiration(decodedIdToken) }}</p>
+              <p><strong>Issued At:</strong> {{ getIssuedAt(decodedIdToken) }}</p>
+            </div>
+
+            <!-- Raw Token -->
+            <mat-expansion-panel>
+              <mat-expansion-panel-header>
+                <mat-panel-title>Raw Token</mat-panel-title>
+              </mat-expansion-panel-header>
+              <div class="token-display">
+                <pre>{{ idToken }}</pre>
+                <button mat-icon-button (click)="copyToClipboard(idToken!, 'ID Token')" title="Copy to clipboard">
+                  <mat-icon>content_copy</mat-icon>
+                </button>
+              </div>
+            </mat-expansion-panel>
+
+            <!-- Decoded Token -->
+            <mat-expansion-panel>
+              <mat-expansion-panel-header>
+                <mat-panel-title>Decoded Payload</mat-panel-title>
+              </mat-expansion-panel-header>
+              <div class="json-display">
+                <pre>{{ formatJson(decodedIdToken) }}</pre>
+                <button mat-icon-button (click)="copyToClipboard(formatJson(decodedIdToken), 'Decoded ID Token')" title="Copy to clipboard">
+                  <mat-icon>content_copy</mat-icon>
+                </button>
+              </div>
+            </mat-expansion-panel>
+          </mat-card-content>
+        </mat-card>
+
+        <ng-template #noIdToken>
+          <mat-card>
+            <mat-card-content>
+              <p>No ID Token available. Please ensure you are logged in.</p>
+            </mat-card-content>
+          </mat-card>
+        </ng-template>
+      </div>
+    </mat-tab>
+
+    <!-- Access Token Tab -->
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <mat-icon>vpn_key</mat-icon>
+        Access Token
+      </ng-template>
+      
+      <div class="tab-content">
+        <mat-card *ngIf="accessToken; else noAccessToken">
+          <mat-card-header>
+            <mat-card-title>Access Token</mat-card-title>
+            <mat-card-subtitle>Used for API authentication</mat-card-subtitle>
+          </mat-card-header>
+          
+          <mat-card-content>
+            <!-- Token Info -->
+            <div class="token-info" *ngIf="decodedAccessToken">
+              <p><strong>Issuer:</strong> {{ decodedAccessToken.iss }}</p>
+              <p><strong>Subject:</strong> {{ decodedAccessToken.sub }}</p>
+              <p><strong>Audience:</strong> {{ decodedAccessToken.aud }}</p>
+              <p><strong>Expires:</strong> {{ getTokenExpiration(decodedAccessToken) }}</p>
+              <p><strong>Issued At:</strong> {{ getIssuedAt(decodedAccessToken) }}</p>
+              
+              <!-- Scopes -->
+              <div *ngIf="getTokenScopes(decodedAccessToken).length > 0">
+                <strong>Scopes:</strong>
+                <mat-chip-set>
+                  <mat-chip *ngFor="let scope of getTokenScopes(decodedAccessToken)">
+                    {{ scope }}
+                  </mat-chip>
+                </mat-chip-set>
+              </div>
+            </div>
+
+            <!-- Raw Token -->
+            <mat-expansion-panel>
+              <mat-expansion-panel-header>
+                <mat-panel-title>Raw Token</mat-panel-title>
+              </mat-expansion-panel-header>
+              <div class="token-display">
+                <pre>{{ accessToken }}</pre>
+                <button mat-icon-button (click)="copyToClipboard(accessToken!, 'Access Token')" title="Copy to clipboard">
+                  <mat-icon>content_copy</mat-icon>
+                </button>
+              </div>
+            </mat-expansion-panel>
+
+            <!-- Decoded Token -->
+            <mat-expansion-panel>
+              <mat-expansion-panel-header>
+                <mat-panel-title>Decoded Payload</mat-panel-title>
+              </mat-expansion-panel-header>
+              <div class="json-display">
+                <pre>{{ formatJson(decodedAccessToken) }}</pre>
+                <button mat-icon-button (click)="copyToClipboard(formatJson(decodedAccessToken), 'Decoded Access Token')" title="Copy to clipboard">
+                  <mat-icon>content_copy</mat-icon>
+                </button>
+              </div>
+            </mat-expansion-panel>
+          </mat-card-content>
+        </mat-card>
+
+        <ng-template #noAccessToken>
+          <mat-card>
+            <mat-card-content>
+              <p>No Access Token available. Please ensure you are logged in and have the required scopes.</p>
+            </mat-card-content>
+          </mat-card>
+        </ng-template>
+      </div>
+    </mat-tab>
+
+    <!-- User Info Tab -->
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <mat-icon>person</mat-icon>
+        User Info
+      </ng-template>
+      
+      <div class="tab-content">
+        <mat-card *ngIf="userInfo; else noUserInfo">
+          <mat-card-header>
+            <mat-card-title>User Information</mat-card-title>
+            <mat-card-subtitle>Account details from MSAL</mat-card-subtitle>
+          </mat-card-header>
+          
+          <mat-card-content>
+            <div class="json-display">
+              <pre>{{ formatJson(userInfo) }}</pre>
+              <button mat-icon-button (click)="copyToClipboard(formatJson(userInfo), 'User Info')" title="Copy to clipboard">
+                <mat-icon>content_copy</mat-icon>
+              </button>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <ng-template #noUserInfo>
+          <mat-card>
+            <mat-card-content>
+              <p>No user information available. Please ensure you are logged in.</p>
+            </mat-card-content>
+          </mat-card>
+        </ng-template>
+      </div>
+    </mat-tab>
+  </mat-tab-group>
+</div>

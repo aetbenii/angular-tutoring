@@ -1,12 +1,12 @@
 import { Injectable } from '@angular/core';
 import { MsalService } from '@azure/msal-angular';
 import { AccountInfo } from '@azure/msal-browser';
-import { BehaviorSubject, from } from 'rxjs';
+import { BehaviorSubject } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { loginRequest, silentRequest } from './msal/msal.config';
-import { environment } from '../../environments/environment';
 import { isDevelopment } from './auth.config';
+import { ProfileService, UserProfile as BackendUserProfile } from '../services/profile.service';
 
 export interface UserRole {
   name: string;
@@ -20,6 +20,8 @@ export interface UserProfile {
   firstName: string;
   lastName: string;
   roles: UserRole[];
+  isAdmin?: boolean;
+  backendProfile?: BackendUserProfile;
 }
 
 @Injectable({
@@ -38,7 +40,8 @@ export class AuthService {
   constructor(
     private msalService: MsalService,
     private http: HttpClient,
-    private router: Router
+    private router: Router,
+    private profileService: ProfileService
   ) {
     this.initializeAuthService();
   }
@@ -186,7 +189,7 @@ export class AuthService {
       }
 
       // Call your API to get user profile with roles
-      const profile = await this.fetchUserProfile(token);
+      const profile = await this.fetchUserProfile();
       this._userProfile$.next(profile);
       
       console.log('🔐 AuthService: User profile loaded', profile);
@@ -195,27 +198,24 @@ export class AuthService {
     }
   }
 
-  private async fetchUserProfile(token: string): Promise<UserProfile> {
-    const headers = { Authorization: `Bearer ${token}` };
-    
+  private async fetchUserProfile(): Promise<UserProfile> {
     try {
-      // First, get basic user info from the token claims
+      // Get basic user info from token claims
       const userInfo = this.getUserInfo();
       const claims = userInfo?.idTokenClaims as Record<string, unknown>;
       
-      // Then fetch roles from your API
-      const rolesResponse = await this.http.get<UserRole[]>(
-        `${environment.msal.apiEndpoint}/users/profile/roles`,
-        { headers }
-      ).toPromise();
+      // Fetch complete profile from backend API
+      const backendProfile = await this.profileService.getUserProfile().toPromise();
 
       const profile: UserProfile = {
         id: (claims?.['sub'] as string) || userInfo?.localAccountId || '',
-        email: (claims?.['email'] as string) || (claims?.['preferred_username'] as string) || '',
-        displayName: (claims?.['name'] as string) || `${(claims?.['given_name'] as string) || ''} ${(claims?.['family_name'] as string) || ''}` || '',
-        firstName: (claims?.['given_name'] as string) || '',
-        lastName: (claims?.['family_name'] as string) || '',
-        roles: rolesResponse || []
+        email: backendProfile?.email || (claims?.['email'] as string) || (claims?.['preferred_username'] as string) || '',
+        displayName: backendProfile ? `${backendProfile.firstName} ${backendProfile.lastName}` : (claims?.['name'] as string) || '',
+        firstName: backendProfile?.firstName || (claims?.['given_name'] as string) || '',
+        lastName: backendProfile?.lastName || (claims?.['family_name'] as string) || '',
+        roles: [], // Convert backend roles to UserRole format if needed
+        isAdmin: backendProfile?.isAdmin || false,
+        backendProfile: backendProfile
       };
 
       return profile;
@@ -232,13 +232,37 @@ export class AuthService {
         displayName: (claims?.['name'] as string) || `${(claims?.['given_name'] as string) || ''} ${(claims?.['family_name'] as string) || ''}` || '',
         firstName: (claims?.['given_name'] as string) || '',
         lastName: (claims?.['family_name'] as string) || '',
-        roles: []
+        roles: [],
+        isAdmin: false
       };
     }
   }
 
   hasRole(roleName: string): boolean {
     const profile = this._userProfile$.value;
+    
+    // Check backend profile roles first
+    if (profile?.backendProfile?.roles?.includes(roleName)) {
+      return true;
+    }
+    
+    // Check token claims
+    const userInfo = this.getUserInfo();
+    if (userInfo?.idTokenClaims) {
+      const claims = userInfo.idTokenClaims as Record<string, unknown>;
+      const roles: string[] = [];
+      
+      if (claims['roles'] && Array.isArray(claims['roles'])) {
+        roles.push(...(claims['roles'] as string[]));
+      }
+      if (claims['extension_roles'] && Array.isArray(claims['extension_roles'])) {
+        roles.push(...(claims['extension_roles'] as string[]));
+      }
+      
+      return roles.includes(roleName);
+    }
+    
+    // Fallback to local profile roles
     return profile?.roles?.some(role => role.name === roleName) || false;
   }
 
@@ -252,6 +276,39 @@ export class AuthService {
   }
 
   isAdmin(): boolean {
+    const profile = this._userProfile$.value;
+    
+    // First check backend profile isAdmin flag
+    if (profile?.backendProfile?.isAdmin !== undefined) {
+      return profile.backendProfile.isAdmin;
+    }
+    
+    // Check if backend profile has app_admin role
+    if (profile?.backendProfile?.roles?.includes('app_admin')) {
+      return true;
+    }
+    
+    // Check token claims for admin roles
+    const userInfo = this.getUserInfo();
+    if (userInfo?.idTokenClaims) {
+      const claims = userInfo.idTokenClaims as Record<string, unknown>;
+      const roles: string[] = [];
+      
+      if (claims['roles'] && Array.isArray(claims['roles'])) {
+        roles.push(...(claims['roles'] as string[]));
+      }
+      if (claims['extension_roles'] && Array.isArray(claims['extension_roles'])) {
+        roles.push(...(claims['extension_roles'] as string[]));
+      }
+      
+      return roles.includes('app_admin');
+    }
+    
+    // Fallback to profile isAdmin flag or role checking
+    if (profile?.isAdmin !== undefined) {
+      return profile.isAdmin;
+    }
+    
     return this.hasRole('admin') || this.hasRole('administrator');
   }
 

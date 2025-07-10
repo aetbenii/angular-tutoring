@@ -1,15 +1,15 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule } from '@angular/material/menu';
-import { MatDividerModule } from '@angular/material/divider';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterModule } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { LogoComponent } from '../shared/logo/logo.component';
-import { AuthService, UserProfile } from '../../auth/auth.service';
+import { AuthService } from '../../auth/auth.service';
+import { AccountInfo } from '@azure/msal-browser';
 import { environment } from '../../../environments/environment';
 
 @Component({
@@ -21,8 +21,7 @@ import { environment } from '../../../environments/environment';
     MatTabsModule, 
     MatButtonModule,
     MatIconModule,
-    MatMenuModule,
-    MatDividerModule,
+    MatTooltipModule,
     RouterModule,
     LogoComponent
   ],
@@ -30,34 +29,53 @@ import { environment } from '../../../environments/environment';
   styleUrls: ['./header.component.scss']
 })
 export class HeaderComponent implements OnInit, OnDestroy {
+  private authService = inject(AuthService);
+  private subscription = new Subscription();
+
+  // Authentication state
+  isAuthenticated = false;
+  userInfo: AccountInfo | null = null;
+  displayName = '';
+  isAdmin = false;
+  environment = environment;
+
   navLinks = [
     { path: '/dashboard', label: 'Dashboard' },
     { path: '/employees', label: 'Employees' },
-    { path: '/offices', label: 'Offices' },
-    { path: '/floor-plans', label: 'Office assignments' },
-    { path: '/floor-map', label: 'Floor Maps' }
+    { path: '/offices', label: 'Office assignments' },
+    { path: '/floor-plans', label: 'Floor Plan' }
   ];
 
-  userProfile: UserProfile | null = null;
-  isAuthenticated = false;
-  environment = environment;
-  
-  private subscription = new Subscription();
-
-  constructor(private authService: AuthService) {}
-
-  ngOnInit(): void {
-    // Subscribe to authentication status
+  async ngOnInit(): Promise<void> {
+    // Wait for auth initialization
+    await this.authService.waitForInitialization();
+    
+    // Subscribe to authentication status changes
     this.subscription.add(
       this.authService.loginStatus$.subscribe(status => {
+        console.log('🔐 Header: Login status changed:', status);
         this.isAuthenticated = status;
+        if (status) {
+          this.userInfo = this.authService.getUserInfo();
+          this.displayName = this.getUserDisplayName();
+          this.isAdmin = this.checkIsAdmin();
+          console.log('🔐 Header: Initial admin status:', this.isAdmin);
+        } else {
+          this.userInfo = null;
+          this.displayName = '';
+          this.isAdmin = false;
+        }
       })
     );
-
-    // Subscribe to user profile changes
+    
+    // Subscribe to user profile changes to update admin status
     this.subscription.add(
       this.authService.userProfile$.subscribe(profile => {
-        this.userProfile = profile;
+        console.log('🔐 Header: User profile changed:', profile);
+        if (profile && this.isAuthenticated) {
+          this.isAdmin = this.checkIsAdmin();
+          console.log('🔐 Header: Updated admin status:', this.isAdmin);
+        }
       })
     );
   }
@@ -74,12 +92,33 @@ export class HeaderComponent implements OnInit, OnDestroy {
     }
   }
 
-  getUserDisplayName(): string {
-    if (!this.userProfile) return 'User';
-    return this.userProfile.displayName || this.userProfile.email || 'User';
+  private getUserDisplayName(): string {
+    if (!this.userInfo) return '';
+    
+    const claims = this.userInfo.idTokenClaims as Record<string, unknown>;
+    if (claims) {
+      if (claims['given_name'] && claims['family_name']) {
+        return `${claims['given_name']} ${claims['family_name']}`;
+      }
+      if (claims['name']) {
+        return claims['name'] as string;
+      }
+      if (claims['preferred_username']) {
+        return claims['preferred_username'] as string;
+      }
+    }
+    
+    return this.userInfo.username || 'User';
   }
 
-  isAdmin(): boolean {
-    return this.authService.isAdmin();
+  private checkIsAdmin(): boolean {
+    // Use enhanced admin checking that includes token claims and backend profile
+    const isAdmin = this.authService.isAdmin();
+    console.log('🔐 Header: Checking admin status:', {
+      isAdmin,
+      userProfile: this.authService.getCurrentUserProfile(),
+      userInfo: this.userInfo
+    });
+    return isAdmin;
   }
 } 
