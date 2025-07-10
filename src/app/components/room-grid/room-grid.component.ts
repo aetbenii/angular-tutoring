@@ -4,6 +4,8 @@ import { FloorService } from '../../services/floor.service';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatButtonModule } from '@angular/material/button';
+import { RouterModule } from '@angular/router';
 
 @Component({
   selector: 'app-room-grid',
@@ -12,7 +14,9 @@ import { MatFormFieldModule } from '@angular/material/form-field';
     CommonModule,
     MatCardModule,
     MatIconModule,
-    MatFormFieldModule
+    MatFormFieldModule,
+    MatButtonModule,
+    RouterModule
   ],
   templateUrl: './room-grid.component.html',
   styleUrls: ['./room-grid.component.scss']

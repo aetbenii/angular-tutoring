@@ -67,17 +67,49 @@ export class OfficesComponent implements OnInit {
     });
 
     // Handle floor selection changes
-    this.selectedFloorControl.valueChanges.subscribe(floorNumber => {
+    this.selectedFloorControl.valueChanges.subscribe(async floorNumber => {
       if (floorNumber !== null) {
-        this.floorService.loadFloor(floorNumber);
+        console.log('Loading floor:', floorNumber);
+        this.loading = true;
+        this.error = null;
+        try {
+          await this.floorService.loadFloor(floorNumber);
+          console.log('Floor loaded successfully');
+        } catch (error) {
+          console.error('Error loading floor:', error);
+          this.error = 'Error loading floor data';
+        } finally {
+          this.loading = false;
+        }
       }
     });
 
-    // Set initial floor selection
-    const currentFloors = this.floors();
-    if (currentFloors.length > 0 && this.selectedFloorControl.value === null) {
-      this.selectedFloorControl.setValue(currentFloors[0].floorNumber);
-    }
+    // Set initial floor selection when floors are loaded
+    // Use an effect to react to floors changes
+    const checkFloorsAndSetInitial = () => {
+      const currentFloors = this.floors();
+      console.log('Available floors:', currentFloors);
+      if (currentFloors.length > 0 && this.selectedFloorControl.value === null) {
+        console.log('Setting initial floor to:', currentFloors[0].floorNumber);
+        this.selectedFloorControl.setValue(currentFloors[0].floorNumber);
+      } else if (currentFloors.length === 0) {
+        console.warn('No floors available yet');
+      }
+    };
+
+    // Check immediately and then watch for changes
+    checkFloorsAndSetInitial();
+    
+    // Watch for floors signal changes and retry if floors become available
+    const intervalId = setInterval(() => {
+      if (this.floors().length > 0 && this.selectedFloorControl.value === null) {
+        checkFloorsAndSetInitial();
+        clearInterval(intervalId);
+      }
+    }, 250);
+
+    // Clean up the interval after 10 seconds to avoid memory leaks
+    setTimeout(() => clearInterval(intervalId), 10000);
   }
 
   onSeatSelected(seatId: number) {

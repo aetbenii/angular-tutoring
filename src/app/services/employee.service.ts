@@ -48,6 +48,34 @@ export class EmployeeService {
     );
   }
 
+  /**
+   * Batch fetch employees by their IDs to avoid N+1 query problem
+   * @param employeeIds Array of employee IDs to fetch
+   * @returns Observable of employee array
+   */
+  getEmployeesByIds(employeeIds: number[]): Observable<Employee[]> {
+    if (employeeIds.length === 0) {
+      return new Observable(subscriber => {
+        subscriber.next([]);
+        subscriber.complete();
+      });
+    }
+
+    // Create params for multiple IDs
+    let params = new HttpParams();
+    employeeIds.forEach(id => {
+      params = params.append('ids', id.toString());
+    });
+
+    return this.http.get<Employee[]>(`${this.apiUrl}/batch`, { params }).pipe(
+      retry(1),
+      catchError((error) => {
+        console.warn('Error fetching employees by IDs:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
   getEmployeeById(id: number): Observable<Employee> {
     return this.http.get<Employee>(`${this.apiUrl}/${id}`).pipe(
       retry(1),

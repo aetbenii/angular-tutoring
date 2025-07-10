@@ -43,13 +43,19 @@ export const authGuard: CanActivateFn = async (route) => {
     // Check for required permissions from route data
     const requiredPermissions = route.data?.['permissions'] as string[] | undefined;
     if (requiredPermissions && requiredPermissions.length > 0) {
+      // Allow admins to bypass specific permission checks
+      const isAdmin = authService.isAdmin();
       const hasRequiredPermission = requiredPermissions.some(permission => 
         authService.hasPermission(permission)
       );
       
-      if (!hasRequiredPermission) {
-        if (isDevelopment) console.log('🔐 User does not have required permissions:', requiredPermissions);
+      if (!hasRequiredPermission && !isAdmin) {
+        if (isDevelopment) console.log('🔐 User does not have required permissions and is not admin:', requiredPermissions);
         return router.parseUrl('/unauthorized');
+      }
+      
+      if (isDevelopment && isAdmin) {
+        console.log('🔐 Admin access granted for permissions:', requiredPermissions);
       }
     }
 

@@ -9,6 +9,12 @@
               <div class="room-info">
                 <h3>{{ room.name }}</h3>
                 <p class="room-number">Room {{ room.roomNumber }}</p>
+                <button mat-raised-button color="primary" 
+                        [routerLink]="['/edit-map', floorNumber, room.id]"
+                        class="edit-geometry-btn">
+                  <mat-icon>edit</mat-icon>
+                  Edit Geometry
+                </button>
               </div>
               <div class="seats">
                 @for (seat of room.seats; track seat.id) {

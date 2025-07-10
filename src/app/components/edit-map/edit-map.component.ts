@@ -15,13 +15,14 @@ import { text } from 'd3';
 
 @Component({
   selector: 'app-edit-map',
+  standalone: true,
   imports: [
     MatButtonModule,
     MatSnackBarModule,
     RouterModule
   ],
   templateUrl: './edit-map.component.html',
-  styleUrl: './edit-map.component.scss'
+  styleUrls: ['./edit-map.component.scss']
 })
 export class EditMapComponent implements OnInit, AfterViewInit{
   selectedRoomControl = new FormControl<number | null>(null);
@@ -165,7 +166,10 @@ export class EditMapComponent implements OnInit, AfterViewInit{
         .append('svg')
         .attr('width', '100%')
         .attr('height', '100%')
-        .style('border', '1px solid red');
+        .style('border', '1px solid #e0e0e0')
+        .style('border-radius', '8px')
+        .style('box-shadow', '0 2px 8px rgba(0, 0, 0, 0.1)')
+        .style('background', 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)');
   
       // Create a background group for the floor plan SVG
       // This layer will contain the imported background SVG

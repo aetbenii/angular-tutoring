@@ -1,0 +1,17 @@
+.button-container {
+  display: flex;
+  justify-content: space-between;
+  padding: 1rem;
+  margin-top: 1rem;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.canvas-container {
+  margin-top: 1rem;
+  min-height: 600px;
+  height: 600px;
+  width: 100%;
+  position: relative;
+}

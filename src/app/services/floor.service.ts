@@ -78,7 +78,6 @@ export class FloorService {
     .subscribe({
       next: (floors) => {
         floors.sort((a, b) => a.id - b.id);
-        this.floorsSignal.set(floors);
         console.log('Received floors data:', floors);
         this.floorsSignal.set(floors);
       },

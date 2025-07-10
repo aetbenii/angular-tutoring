@@ -43,7 +43,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     { path: '/dashboard', label: 'Dashboard' },
     { path: '/employees', label: 'Employees' },
     { path: '/offices', label: 'Office assignments' },
-    { path: '/floor-plans', label: 'Floor Plan' }
+    { path: '/floor-map', label: 'Floor Plan' }
   ];
 
   async ngOnInit(): Promise<void> {

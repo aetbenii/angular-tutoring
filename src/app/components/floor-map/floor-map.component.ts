@@ -102,18 +102,39 @@ export class FloorMapComponent implements OnInit {
             this.loading.set(false);
             return EMPTY;
           })
-        ).subscribe(response => {
+        ).subscribe(async response => {
           const expandedList: { id: number; fullName: string; floorName: string; seatId: number }[] = [];
+          
+          // Collect all seat IDs that need floor info
+          const seatIds = response.content.flatMap(employee => 
+            employee.seatIds.length > 1 ? employee.seatIds : []
+          );
+          
+          // Batch fetch seat info if there are any multi-seat employees
+          let seatFloorMap = new Map<number, string>();
+          if (seatIds.length > 0) {
+            try {
+              const seatInfoPromises = seatIds.map(id => 
+                this.floorService.getSeatInfo(id).toPromise()
+              );
+              const seatInfos = await Promise.all(seatInfoPromises);
+              seatFloorMap = new Map(
+                seatInfos.filter(seat => seat != null).map(seat => [seat.id, seat.floorName])
+              );
+            } catch (error) {
+              console.error('Error fetching seat floor info:', error);
+            }
+          }
+          
+          // Build expanded list with cached floor info
           response.content.forEach(employee => {
             if (employee.seatIds.length > 1) {
               employee.seatIds.forEach(seatId => {
-                this.floorService.getSeatInfo(seatId).subscribe(seat => {
-                  expandedList.push({
-                    id: employee.id,
-                    fullName: employee.fullName,
-                    floorName: seat.floorName,
-                    seatId: seat.id
-                  });
+                expandedList.push({
+                  id: employee.id,
+                  fullName: employee.fullName,
+                  floorName: seatFloorMap.get(seatId) || "",
+                  seatId: seatId
                 });
               });
             } else {
@@ -125,6 +146,7 @@ export class FloorMapComponent implements OnInit {
               });
             }
           });
+          
           this.filteredNames.next(expandedList);
         });
       }
@@ -206,7 +228,10 @@ export class FloorMapComponent implements OnInit {
       .append('svg')
       .attr('width', '100%')
       .attr('height', '100%')
-      .style('border', '1px solid red');
+      .style('border', '1px solid #e0e0e0')
+      .style('border-radius', '8px')
+      .style('box-shadow', '0 2px 8px rgba(0, 0, 0, 0.1)')
+      .style('background', 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)');
 
     const backgroundGroup = this.svg.append('g')
       .attr('class', 'background-layer');
@@ -251,7 +276,10 @@ export class FloorMapComponent implements OnInit {
         
         // Configure D3 zoom behavior for pan and zoom functionality
         this.configureZoom(backgroundGroup);
-        this.drawRooms(this.g);
+        this.drawRooms(this.g).catch(error => {
+          console.error('Error drawing rooms:', error);
+          this.error.set('Error loading floor data');
+        });
       },
       error: (error) => {
         this.loading.set(false);
@@ -295,14 +323,55 @@ export class FloorMapComponent implements OnInit {
     
   }
 
-  private drawRooms(g: any):void {
-    this.selectedFloor()?.rooms.forEach(room => {
-      const roomGroup = g.append('g')
-      .attr('id', 'room-group-'+ room.id);
-      if(room.x !== 0 && room.y !== 0){
-        this.drawRoom(roomGroup, room);
+  private async drawRooms(g: any): Promise<void> {
+    const rooms = this.selectedFloor()?.rooms || [];
+    
+    // First, draw all room containers immediately for visual feedback
+    const roomGroups = rooms.map(room => {
+      const roomGroup = g.append('g').attr('id', 'room-group-' + room.id);
+      if (room.x !== 0 && room.y !== 0) {
+        this.drawRoomContainer(roomGroup, room);
       }
-    })
+      return { roomGroup, room };
+    });
+
+    // Then, batch load all employee data for all rooms
+    const allSeats = rooms.flatMap(room => room.seats || []);
+    const enrichedSeats = await this.enrichSeatsWithEmployees(allSeats);
+    
+    // Create a map of seat ID to enriched seat data
+    const seatMap = new Map(enrichedSeats.map(seat => [seat.id, seat]));
+
+    // Finally, draw seats for each room using the pre-loaded data
+    roomGroups.forEach(({ roomGroup, room }) => {
+      if (room.x !== 0 && room.y !== 0) {
+        const roomSeats = (room.seats || []).map(seat => seatMap.get(seat.id) || seat);
+        this.drawRoomSeats(roomGroup, roomSeats);
+      }
+    });
+  }
+
+  private drawRoomContainer(roomGroup: any, room: Room): void {
+    roomGroup.attr('transform', `translate(${room.x}, ${room.y})`);
+    const rect = roomGroup.append('rect')
+      .attr('width', room.width)
+      .attr('height', room.height)
+      .attr('fill', 'rgba(255, 255, 255, 0.3)');
+
+    const text = roomGroup.append('text')
+      .attr('x', room.width/2)
+      .attr('y', room.height/2)
+      .attr('dy', '.35em')
+      .attr('text-anchor', 'middle')
+      .attr('fill', 'black');
+
+    this.createInfoBox(roomGroup, rect, room);
+  }
+
+  private drawRoomSeats(roomGroup: any, seats: any[]): void {
+    seats.forEach((seat) => {
+      this.drawSeat(roomGroup, seat);
+    });
   }
 
   private async drawRoom(roomGroup: any, room: Room){
@@ -402,17 +471,43 @@ export class FloorMapComponent implements OnInit {
     }
   }
 
-  private enrichSeatsWithEmployees(seats: Seat[]): Promise<any[]> {
-    return Promise.all(seats.map(async seat => {
+  private async enrichSeatsWithEmployees(seats: Seat[]): Promise<any[]> {
+    // Collect all unique employee IDs from all seats
+    const allEmployeeIds = seats.reduce((ids: number[], seat) => {
       if (seat.employeeIds && seat.employeeIds.length > 0) {
-        const employees = await Promise.all(
-          seat.employeeIds.map((id: number) => this.employeeService.getEmployeeById(id).toPromise())
-        );
-        return { ...seat, employees };
-      } else {
-        return { ...seat, employees: [] };
+        ids.push(...seat.employeeIds);
       }
-    }));
+      return ids;
+    }, []);
+
+    // Remove duplicates
+    const uniqueEmployeeIds = [...new Set(allEmployeeIds)];
+
+    if (uniqueEmployeeIds.length === 0) {
+      return seats.map(seat => ({ ...seat, employees: [] }));
+    }
+
+    try {
+      // Fetch all employees in one batch request
+      const allEmployees = await this.employeeService.getEmployeesByIds(uniqueEmployeeIds).toPromise();
+      
+      // Create a map for quick lookup
+      const employeeMap = new Map(allEmployees?.map(emp => [emp.id, emp]) || []);
+
+      // Map employees to their respective seats
+      return seats.map(seat => {
+        if (seat.employeeIds && seat.employeeIds.length > 0) {
+          const employees = seat.employeeIds.map(id => employeeMap.get(id)).filter(Boolean);
+          return { ...seat, employees };
+        } else {
+          return { ...seat, employees: [] };
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching employees in batch:', error);
+      // Fallback to empty employees if batch fails
+      return seats.map(seat => ({ ...seat, employees: [] }));
+    }
   }
 
   private createInfoBox(roomGroup: any, rect: any, room: any): void {
