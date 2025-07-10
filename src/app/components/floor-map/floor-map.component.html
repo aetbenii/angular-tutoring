@@ -31,6 +31,17 @@
     </mat-form-field>
   </mat-card>
   <div class="canvas-container" #canvasContainer>
+    <!-- Loading spinner -->
+    <div *ngIf="loading()" class="loading-container">
+      <mat-spinner diameter="50"></mat-spinner>
+      <p>Loading floor plan...</p>
+    </div>
     
+    <!-- SVG not available message -->
+    <div *ngIf="svgNotAvailable() && !loading()" class="no-plan-container">
+      <mat-icon class="no-plan-icon">error_outline</mat-icon>
+      <h3>Floor Plan Not Available</h3>
+      <p>The floor plan for this floor is currently not available.</p>
+    </div>
   </div>
 </div>

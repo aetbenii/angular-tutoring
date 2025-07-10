@@ -57,6 +57,7 @@ export class FloorMapComponent implements OnInit {
 
   loading = signal<boolean>(false);
   error = signal<string | null>(null);
+  svgNotAvailable = signal<boolean>(false);
   searchControl = new FormControl<string>('');
   selectedFloorControl = new FormControl<number | null>(null);
   floors = this.floorService.floors;
@@ -209,6 +210,7 @@ export class FloorMapComponent implements OnInit {
   private loadFloorPlan(floorNumber: number): void {
     this.loading.set(true);
     this.error.set(null);
+    this.svgNotAvailable.set(false);
     this.clearSvgContainer();
     this.initializeSvg(floorNumber);
   }
@@ -283,7 +285,8 @@ export class FloorMapComponent implements OnInit {
       },
       error: (error) => {
         this.loading.set(false);
-        this.error.set('Error loading floor plan SVG');
+        this.svgNotAvailable.set(true);
+        this.error.set('Floor plan not available');
         console.error('Error loading background SVG:', error);
       }
     });

@@ -42,7 +42,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
   navLinks = [
     { path: '/dashboard', label: 'Dashboard' },
     { path: '/employees', label: 'Employees' },
-    { path: '/offices', label: 'Office assignments' },
+    { path: '/floor-plans', label: 'Office assignments' },
     { path: '/floor-map', label: 'Floor Plan' }
   ];
 

@@ -26,17 +26,21 @@
               <h3>{{room.name}}</h3>
               <p class="room-number">Room {{room.roomNumber}}</p>
             </div>
-            <button mat-raised-button color="primary" 
-            [routerLink]="['/edit-map', selectedFloor()?.id, room.id]">
-              <mat-icon>edit</mat-icon>
-              Edit Room
-            </button>
-            <button mat-raised-button color="primary" 
-            (click)="printRoomLabel(room)" 
-            [disabled]="isRoomEmpty(room)">
-              <mat-icon>print</mat-icon>
-              Print label
-            </button>
+            <div class="button-group">
+              <button mat-raised-button color="primary" 
+              [routerLink]="['/edit-map', selectedFloor()?.id, room.id]"
+              class="edit-button">
+                <mat-icon>edit</mat-icon>
+                Edit Room
+              </button>
+              <button mat-raised-button color="primary" 
+              (click)="printRoomLabel(room)" 
+              [disabled]="isRoomEmpty(room)"
+              class="print-button">
+                <mat-icon>print</mat-icon>
+                Print label
+              </button>
+            </div>
           </div>
           <div class="employees-list">
             <div *ngFor="let seat of room.seats" class="seat-info">

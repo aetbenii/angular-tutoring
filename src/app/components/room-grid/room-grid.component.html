@@ -6,9 +6,11 @@
         <mat-card class="room">
           <mat-card-content>
             <div class="room-content">
-              <div class="room-info">
-                <h3>{{ room.name }}</h3>
-                <p class="room-number">Room {{ room.roomNumber }}</p>
+              <div class="room-header">
+                <div class="room-info">
+                  <h3>{{ room.name }}</h3>
+                  <p class="room-number">Room {{ room.roomNumber }}</p>
+                </div>
                 <button mat-raised-button color="primary" 
                         [routerLink]="['/edit-map', floorNumber, room.id]"
                         class="edit-geometry-btn">
