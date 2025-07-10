@@ -116,7 +116,7 @@ export class FloorMapComponent implements OnInit {
           if (seatIds.length > 0) {
             try {
               const seatInfoPromises = seatIds.map(id => 
-                this.floorService.getSeatInfo(id).toPromise()
+                firstValueFrom(this.floorService.getSeatInfo(id))
               );
               const seatInfos = await Promise.all(seatInfoPromises);
               seatFloorMap = new Map(
@@ -211,8 +211,15 @@ export class FloorMapComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
     this.svgNotAvailable.set(false);
-    this.clearSvgContainer();
-    this.initializeSvg(floorNumber);
+    
+    // If SVG is not initialized, initialize it
+    if (!this.svg) {
+      this.clearSvgContainer();
+      this.initializeSvg(floorNumber);
+    } else {
+      // If SVG already exists, just update the content
+      this.updateFloorContent(floorNumber);
+    }
   }
 
   private clearSvgContainer(): void {
@@ -306,6 +313,64 @@ export class FloorMapComponent implements OnInit {
     this.svg.call(this.zoom.transform, initialTransform);
   }
 
+  private updateFloorContent(floorNumber: number): void {
+    // Clear existing rooms with smooth transition
+    this.g.selectAll('.room-group')
+      .transition()
+      .duration(300)
+      .style('opacity', 0)
+      .remove();
+
+    // Update background SVG
+    this.updateBackgroundSvg(floorNumber);
+  }
+
+  private updateBackgroundSvg(floorNumber: number): void {
+    const backgroundGroup = this.svg.select('.background-layer');
+    
+    // Clear existing background
+    backgroundGroup.selectAll('*').remove();
+    
+    // Load new background SVG
+    this.http.get(`${this.apiUrl}/floors/${floorNumber}/svg`, { 
+      responseType: 'text',
+      headers: { 'Accept': 'image/svg+xml' }
+    }).subscribe({
+      next: (svgText) => {
+        this.loading.set(false);
+        
+        const parser = new DOMParser();
+        const svgDoc = parser.parseFromString(svgText, 'image/svg+xml');
+        const backgroundSvg = svgDoc.documentElement;
+        
+        const viewBox = backgroundSvg.getAttribute('viewBox');
+        if (viewBox) {
+          this.svg.attr('viewBox', viewBox);
+        }
+        
+        backgroundGroup.node().appendChild(backgroundSvg);
+        
+        if(floorNumber == 2){
+          d3.select(backgroundSvg)
+            .attr('width', 3300)
+            .attr('height', 1325);
+        }
+        
+        // Draw rooms with smooth entrance transition
+        this.drawRoomsWithTransition(this.g).catch(error => {
+          console.error('Error drawing rooms:', error);
+          this.error.set('Error loading floor data');
+        });
+      },
+      error: (error) => {
+        this.loading.set(false);
+        this.svgNotAvailable.set(true);
+        this.error.set('Floor plan not available');
+        console.error('Error loading background SVG:', error);
+      }
+    });
+  }
+
   private zoomOnEmployee(seat: any): void {
     const container = this.canvasContainer.nativeElement;
     if (!container) {
@@ -331,7 +396,7 @@ export class FloorMapComponent implements OnInit {
     
     // First, draw all room containers immediately for visual feedback
     const roomGroups = rooms.map(room => {
-      const roomGroup = g.append('g').attr('id', 'room-group-' + room.id);
+      const roomGroup = g.append('g').attr('id', 'room-group-' + room.id).attr('class', 'room-group');
       if (room.x !== 0 && room.y !== 0) {
         this.drawRoomContainer(roomGroup, room);
       }
@@ -352,6 +417,117 @@ export class FloorMapComponent implements OnInit {
         this.drawRoomSeats(roomGroup, roomSeats);
       }
     });
+  }
+
+  private async drawRoomsWithTransition(g: any): Promise<void> {
+    const rooms = this.selectedFloor()?.rooms || [];
+    
+    // Use D3's enter/update/exit pattern
+    const roomSelection = g.selectAll('.room-group')
+      .data(rooms, (d: any) => d.id);
+    
+    // Remove old rooms with exit transition
+    roomSelection.exit()
+      .transition()
+      .duration(300)
+      .style('opacity', 0)
+      .remove();
+    
+    // Add new rooms with enter transition
+    const enteringRooms = roomSelection.enter()
+      .append('g')
+      .attr('class', 'room-group')
+      .attr('id', (d: any) => 'room-group-' + d.id)
+      .style('opacity', 0);
+    
+    // Merge entering and updating selections
+    const allRooms = enteringRooms.merge(roomSelection);
+    
+    // Batch load all employee data for all rooms
+    const allSeats = rooms.flatMap(room => room.seats || []);
+    const enrichedSeats = await this.enrichSeatsWithEmployees(allSeats);
+    
+    // Create a map of seat ID to enriched seat data
+    const seatMap = new Map(enrichedSeats.map(seat => [seat.id, seat]));
+    
+    // Draw room containers and seats
+    allRooms.each((room: Room, i: number, nodes: Element[]) => {
+      const roomGroup = d3.select(nodes[i]);
+      
+      // Clear existing content
+      roomGroup.selectAll('*').remove();
+      
+      if (room.x !== 0 && room.y !== 0) {
+        // Draw room container
+        roomGroup.attr('transform', `translate(${room.x}, ${room.y})`);
+        
+        const rect = roomGroup.append('rect')
+          .attr('width', room.width)
+          .attr('height', room.height)
+          .attr('fill', 'rgba(255, 255, 255, 0.3)');
+
+        const text = roomGroup.append('text')
+          .attr('x', room.width/2)
+          .attr('y', room.height/2)
+          .attr('dy', '.35em')
+          .attr('text-anchor', 'middle')
+          .attr('fill', 'black');
+        
+        // Create info box
+        const infoBox = roomGroup.append('rect')
+          .attr('x', 10)
+          .attr('y', room.y > 200 ? room.height : -75)
+          .attr('width', room.width - 20)
+          .attr('height', 75)
+          .attr('fill', 'rgb(254, 243, 205)')
+          .attr('stroke', 'black')
+          .attr('stroke-width', 2);
+
+        const foreignObject = roomGroup.append('foreignObject')
+          .attr('x', 10)
+          .attr('y', infoBox.attr('y'))
+          .attr('width', infoBox.attr('width'))
+          .attr('height', 75);
+
+        const htmlContent = foreignObject.append('xhtml:div')
+          .style('height', '100%')
+          .style('padding', '0 10px 0 10px')
+          .style('font-size', '14px')
+          .style('font-family', 'Arial, sans-serif')
+          .html(`
+            <div style="display: flex; flex-direction: column; gap: 0; height: 100%; justify-content: center;">
+            <div style="text-align: center;">
+              <b>${room.name}</b> 
+              <br/>
+              <b>${room.roomNumber}</b>
+            </div>
+          </div>
+          `);
+        
+        // Draw seats
+        const roomSeats = (room.seats || []).map((seat: any) => seatMap.get(seat.id) || seat);
+        roomSeats.forEach((seat: any) => {
+          // Draw seat logic here - simplified for space
+          const seatGroup = roomGroup.append('g')
+            .attr('transform', `translate(${seat.x}, ${seat.y})`);
+          
+          const seatRect = seatGroup.append('rect')
+            .attr('width', seat.width)
+            .attr('height', seat.height)
+            .attr('fill', seat.employees && seat.employees.length > 0 ? 'rgb(255, 99, 132)' : 'rgb(123, 184, 148)')
+            .attr('stroke', seat.employees && seat.employees.length > 0 ? 'rgb(220, 53, 69)' : 'rgb(29, 112, 61)')
+            .attr('stroke-width', 2);
+          
+          // Add seat interactivity and content as needed
+        });
+      }
+    });
+    
+    // Animate new rooms into view
+    enteringRooms
+      .transition()
+      .duration(500)
+      .style('opacity', 1);
   }
 
   private drawRoomContainer(roomGroup: any, room: Room): void {
@@ -492,7 +668,7 @@ export class FloorMapComponent implements OnInit {
 
     try {
       // Fetch all employees in one batch request
-      const allEmployees = await this.employeeService.getEmployeesByIds(uniqueEmployeeIds).toPromise();
+      const allEmployees = await firstValueFrom(this.employeeService.getEmployeesByIds(uniqueEmployeeIds));
       
       // Create a map for quick lookup
       const employeeMap = new Map(allEmployees?.map(emp => [emp.id, emp]) || []);

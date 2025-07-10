@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams, HttpErrorResponse } from '@angular/common/http';
-import { Observable, throwError } from 'rxjs';
-import { catchError, retry } from 'rxjs/operators';
+import { Observable, throwError, forkJoin, of } from 'rxjs';
+import { catchError, retry, map } from 'rxjs/operators';
 import { Seat } from '../interfaces/seat.interface';
 import { Employee } from '../interfaces/employee.interface';
 
@@ -70,8 +70,43 @@ export class EmployeeService {
     return this.http.get<Employee[]>(`${this.apiUrl}/batch`, { params }).pipe(
       retry(1),
       catchError((error) => {
-        console.warn('Error fetching employees by IDs:', error);
-        return throwError(() => error);
+        console.warn('Batch endpoint not available, falling back to individual requests:', error);
+        // Fallback to individual requests if batch endpoint is not implemented
+        return this.getEmployeesByIdsIndividually(employeeIds);
+      })
+    );
+  }
+
+  /**
+   * Fallback method to fetch employees individually when batch endpoint is not available
+   * @param employeeIds Array of employee IDs to fetch
+   * @returns Observable of employee array
+   */
+  private getEmployeesByIdsIndividually(employeeIds: number[]): Observable<Employee[]> {
+    if (employeeIds.length === 0) {
+      return of([]);
+    }
+
+    // Create individual requests with error handling
+    const requests = employeeIds.map(id => 
+      this.getEmployeeById(id).pipe(
+        catchError((error) => {
+          console.warn(`Failed to fetch employee ${id}:`, error);
+          // Return null for failed requests so we can filter them out
+          return of(null);
+        })
+      )
+    );
+
+    // Use forkJoin to make all requests in parallel
+    return forkJoin(requests).pipe(
+      map(results => {
+        // Filter out null results (failed requests)
+        return results.filter((employee): employee is Employee => employee !== null);
+      }),
+      catchError((error) => {
+        console.error('Error in individual employee requests:', error);
+        return of([]);
       })
     );
   }

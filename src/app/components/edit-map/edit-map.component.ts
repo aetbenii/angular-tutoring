@@ -92,7 +92,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
       return Promise.all(seats.map(async seat => {
         if (seat.employeeIds && seat.employeeIds.length > 0) {
           const employees = await Promise.all(
-            seat.employeeIds.map((id: number) => this.EmployeeService.getEmployeeById(id).toPromise())
+            seat.employeeIds.map((id: number) => firstValueFrom(this.EmployeeService.getEmployeeById(id)))
           );
           return { ...seat, employees };
         } else {

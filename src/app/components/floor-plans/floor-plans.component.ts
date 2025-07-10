@@ -20,6 +20,7 @@ import { RouterModule } from '@angular/router';
 import { EmployeeService } from '../../services/employee.service';
 import { DeleteSeatDialogComponent } from './delete-seat-dialog/delete-seat-dialog.component';
 import { AddSeatDialogComponent } from './add-seat-dialog/add-seat-dialog.component';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-floor-plans',
@@ -232,18 +233,44 @@ export class FloorPlansComponent implements OnInit {
     }
   }
 
-  private enrichSeatsWithEmployees(seats: any[]): Promise<any[]> {
-  return Promise.all(seats.map(async seat => {
-    if (seat.employeeIds && seat.employeeIds.length > 0) {
-      const employees = await Promise.all(
-        seat.employeeIds.map((id: number) => this.employeeService.getEmployeeById(id).toPromise())
-      );
-      return { ...seat, employees };
-    } else {
-      return { ...seat, employees: [] };
+  private async enrichSeatsWithEmployees(seats: any[]): Promise<any[]> {
+    // Collect all unique employee IDs from all seats
+    const allEmployeeIds = new Set<number>();
+    seats.forEach(seat => {
+      if (seat.employeeIds && seat.employeeIds.length > 0) {
+        seat.employeeIds.forEach((id: number) => allEmployeeIds.add(id));
+      }
+    });
+
+    // If no employees, return seats with empty employees arrays
+    if (allEmployeeIds.size === 0) {
+      return seats.map(seat => ({ ...seat, employees: [] })).sort((a, b) => a.id - b.id);
     }
-  })).then(seatsWithEmployees => seatsWithEmployees.sort((a, b) => a.id - b.id));
-}
+
+    // Batch fetch all employees in a single request
+    const employeesArray = Array.from(allEmployeeIds);
+    const employees = await firstValueFrom(this.employeeService.getEmployeesByIds(employeesArray));
+    
+    // Create a map for quick lookup
+    const employeeMap = new Map<number, any>();
+    employees?.forEach(employee => {
+      employeeMap.set(employee.id, employee);
+    });
+
+    // Map employees to their seats
+    const enrichedSeats = seats.map(seat => {
+      if (seat.employeeIds && seat.employeeIds.length > 0) {
+        const seatEmployees = seat.employeeIds
+          .map((id: number) => employeeMap.get(id))
+          .filter((employee: unknown) => employee !== undefined);
+        return { ...seat, employees: seatEmployees };
+      } else {
+        return { ...seat, employees: [] };
+      }
+    });
+
+    return enrichedSeats.sort((a, b) => a.id - b.id);
+  }
 
   printRoomLabel(room: Room): void {
     // Create a new PDF document

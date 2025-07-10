@@ -1,12 +1,13 @@
 import { Injectable } from '@angular/core';
 import { MsalService } from '@azure/msal-angular';
 import { AccountInfo } from '@azure/msal-browser';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, firstValueFrom } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { loginRequest, silentRequest } from './msal/msal.config';
 import { isDevelopment } from './auth.config';
 import { ProfileService, UserProfile as BackendUserProfile } from '../services/profile.service';
+import { B2CTokenClaims, isB2CTokenClaims } from './b2c-token.interface';
 
 export interface UserRole {
   name: string;
@@ -202,17 +203,20 @@ export class AuthService {
     try {
       // Get basic user info from token claims
       const userInfo = this.getUserInfo();
-      const claims = userInfo?.idTokenClaims as Record<string, unknown>;
+      const rawClaims = userInfo?.idTokenClaims;
+      
+      // Validate and cast to B2C token claims
+      const claims: B2CTokenClaims | null = rawClaims && isB2CTokenClaims(rawClaims) ? rawClaims : null;
       
       // Fetch complete profile from backend API
-      const backendProfile = await this.profileService.getUserProfile().toPromise();
+      const backendProfile = await firstValueFrom(this.profileService.getUserProfile());
 
       const profile: UserProfile = {
-        id: (claims?.['sub'] as string) || userInfo?.localAccountId || '',
-        email: backendProfile?.email || (claims?.['email'] as string) || (claims?.['preferred_username'] as string) || '',
-        displayName: backendProfile ? `${backendProfile.firstName} ${backendProfile.lastName}` : (claims?.['name'] as string) || '',
-        firstName: backendProfile?.firstName || (claims?.['given_name'] as string) || '',
-        lastName: backendProfile?.lastName || (claims?.['family_name'] as string) || '',
+        id: claims?.sub || userInfo?.localAccountId || '',
+        email: backendProfile?.email || claims?.email || claims?.preferred_username || '',
+        displayName: backendProfile ? `${backendProfile.firstName} ${backendProfile.lastName}` : claims?.name || '',
+        firstName: backendProfile?.firstName || claims?.given_name || '',
+        lastName: backendProfile?.lastName || claims?.family_name || '',
         roles: [], // Convert backend roles to UserRole format if needed
         isAdmin: backendProfile?.isAdmin || false,
         backendProfile: backendProfile
@@ -224,14 +228,15 @@ export class AuthService {
       
       // Fallback to token claims only
       const userInfo = this.getUserInfo();
-      const claims = userInfo?.idTokenClaims as Record<string, unknown>;
+      const rawClaims = userInfo?.idTokenClaims;
+      const claims: B2CTokenClaims | null = rawClaims && isB2CTokenClaims(rawClaims) ? rawClaims : null;
       
       return {
-        id: (claims?.['sub'] as string) || userInfo?.localAccountId || '',
-        email: (claims?.['email'] as string) || (claims?.['preferred_username'] as string) || '',
-        displayName: (claims?.['name'] as string) || `${(claims?.['given_name'] as string) || ''} ${(claims?.['family_name'] as string) || ''}` || '',
-        firstName: (claims?.['given_name'] as string) || '',
-        lastName: (claims?.['family_name'] as string) || '',
+        id: claims?.sub || userInfo?.localAccountId || '',
+        email: claims?.email || claims?.preferred_username || '',
+        displayName: claims?.name || `${claims?.given_name || ''} ${claims?.family_name || ''}`.trim() || '',
+        firstName: claims?.given_name || '',
+        lastName: claims?.family_name || '',
         roles: [],
         isAdmin: false
       };
@@ -249,17 +254,27 @@ export class AuthService {
     // Check token claims
     const userInfo = this.getUserInfo();
     if (userInfo?.idTokenClaims) {
-      const claims = userInfo.idTokenClaims as Record<string, unknown>;
-      const roles: string[] = [];
+      const rawClaims = userInfo.idTokenClaims;
+      const claims: B2CTokenClaims | null = rawClaims && isB2CTokenClaims(rawClaims) ? rawClaims : null;
       
-      if (claims['roles'] && Array.isArray(claims['roles'])) {
-        roles.push(...(claims['roles'] as string[]));
+      if (claims) {
+        const roles: string[] = [];
+        
+        // Check custom role extension
+        if (claims.extension_Role) {
+          roles.push(claims.extension_Role);
+        }
+        
+        // Check other role-related claims
+        if (claims['roles'] && Array.isArray(claims['roles'])) {
+          roles.push(...(claims['roles'] as string[]));
+        }
+        if (claims['extension_roles'] && Array.isArray(claims['extension_roles'])) {
+          roles.push(...(claims['extension_roles'] as string[]));
+        }
+        
+        return roles.includes(roleName);
       }
-      if (claims['extension_roles'] && Array.isArray(claims['extension_roles'])) {
-        roles.push(...(claims['extension_roles'] as string[]));
-      }
-      
-      return roles.includes(roleName);
     }
     
     // Fallback to local profile roles
@@ -291,17 +306,27 @@ export class AuthService {
     // Check token claims for admin roles
     const userInfo = this.getUserInfo();
     if (userInfo?.idTokenClaims) {
-      const claims = userInfo.idTokenClaims as Record<string, unknown>;
-      const roles: string[] = [];
+      const rawClaims = userInfo.idTokenClaims;
+      const claims: B2CTokenClaims | null = rawClaims && isB2CTokenClaims(rawClaims) ? rawClaims : null;
       
-      if (claims['roles'] && Array.isArray(claims['roles'])) {
-        roles.push(...(claims['roles'] as string[]));
+      if (claims) {
+        const roles: string[] = [];
+        
+        // Check custom role extension
+        if (claims.extension_Role) {
+          roles.push(claims.extension_Role);
+        }
+        
+        // Check other role-related claims
+        if (claims['roles'] && Array.isArray(claims['roles'])) {
+          roles.push(...(claims['roles'] as string[]));
+        }
+        if (claims['extension_roles'] && Array.isArray(claims['extension_roles'])) {
+          roles.push(...(claims['extension_roles'] as string[]));
+        }
+        
+        return roles.includes('app_admin');
       }
-      if (claims['extension_roles'] && Array.isArray(claims['extension_roles'])) {
-        roles.push(...(claims['extension_roles'] as string[]));
-      }
-      
-      return roles.includes('app_admin');
     }
     
     // Fallback to profile isAdmin flag or role checking

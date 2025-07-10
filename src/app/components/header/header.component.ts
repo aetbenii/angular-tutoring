@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, OnDestroy } from '@angular/core';
+import { Component, inject, OnInit, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTabsModule } from '@angular/material/tabs';
@@ -6,7 +6,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterModule } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { LogoComponent } from '../shared/logo/logo.component';
 import { AuthService } from '../../auth/auth.service';
 import { AccountInfo } from '@azure/msal-browser';
@@ -28,9 +28,9 @@ import { environment } from '../../../environments/environment';
   templateUrl: './header.component.html',
   styleUrls: ['./header.component.scss']
 })
-export class HeaderComponent implements OnInit, OnDestroy {
+export class HeaderComponent implements OnInit {
   private authService = inject(AuthService);
-  private subscription = new Subscription();
+  private destroyRef = inject(DestroyRef);
 
   // Authentication state
   isAuthenticated = false;
@@ -51,8 +51,9 @@ export class HeaderComponent implements OnInit, OnDestroy {
     await this.authService.waitForInitialization();
     
     // Subscribe to authentication status changes
-    this.subscription.add(
-      this.authService.loginStatus$.subscribe(status => {
+    this.authService.loginStatus$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(status => {
         console.log('🔐 Header: Login status changed:', status);
         this.isAuthenticated = status;
         if (status) {
@@ -65,23 +66,18 @@ export class HeaderComponent implements OnInit, OnDestroy {
           this.displayName = '';
           this.isAdmin = false;
         }
-      })
-    );
+      });
     
     // Subscribe to user profile changes to update admin status
-    this.subscription.add(
-      this.authService.userProfile$.subscribe(profile => {
+    this.authService.userProfile$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(profile => {
         console.log('🔐 Header: User profile changed:', profile);
         if (profile && this.isAuthenticated) {
           this.isAdmin = this.checkIsAdmin();
           console.log('🔐 Header: Updated admin status:', this.isAdmin);
         }
-      })
-    );
-  }
-
-  ngOnDestroy(): void {
-    this.subscription.unsubscribe();
+      });
   }
 
   async logout(): Promise<void> {

@@ -1,7 +1,7 @@
-import { Component, OnInit, inject, OnDestroy } from '@angular/core';
+import { Component, OnInit, inject, DestroyRef } from '@angular/core';
 import { RouterOutlet, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { Subscription } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HeaderComponent } from './components/header/header.component';
 import { AuthService } from './auth/auth.service';
 
@@ -28,48 +28,9 @@ import { AuthService } from './auth/auth.service';
       </div>
     </div>
   `,
-  styles: [`
-    .app-container {
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
-    }
-
-    .loading-container {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      background-color: #f5f5f5;
-    }
-
-    .loading-spinner {
-      width: 40px;
-      height: 40px;
-      border: 4px solid #f3f3f3;
-      border-top: 4px solid #3498db;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin-bottom: 20px;
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-
-    main {
-      flex: 1;
-      background-color: #f5f5f5;
-    }
-
-    main.with-header {
-      padding: 0 2rem;
-    }
-  `]
+  styleUrls: ['./app.component.scss']
 })
-export class AppComponent implements OnInit, OnDestroy {
+export class AppComponent implements OnInit {
   title = 'Office Management';
   
   isAuthenticated = false;
@@ -77,22 +38,22 @@ export class AppComponent implements OnInit, OnDestroy {
   
   private authService = inject(AuthService);
   private router = inject(Router);
-  private subscription = new Subscription();
+  private destroyRef = inject(DestroyRef);
 
   ngOnInit(): void {
     this.initializeApp();
     
     // Subscribe to authentication status changes
-    this.subscription.add(
-      this.authService.loginStatus$.subscribe(status => {
+    this.authService.loginStatus$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(status => {
         this.isAuthenticated = status;
         
         // Redirect to login if not authenticated and not already on login page
         if (!status && !this.router.url.includes('/login')) {
           this.router.navigate(['/login']);
         }
-      })
-    );
+      });
   }
 
   private async initializeApp(): Promise<void> {
@@ -118,7 +79,4 @@ export class AppComponent implements OnInit, OnDestroy {
     }
   }
 
-  ngOnDestroy(): void {
-    this.subscription.unsubscribe();
-  }
 }
