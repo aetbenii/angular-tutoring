@@ -3,7 +3,46 @@
     <app-logo [size]="180"></app-logo>
     <span class="brand-text">Office Management</span>
   </div>
+  
+  <!-- Spacer to push user menu to the right -->
+  <span class="spacer"></span>
+  
+  <!-- User profile menu -->
+  <div class="user-section" *ngIf="isAuthenticated">
+    <!-- Debug button - only show in development -->
+    <button mat-icon-button 
+            *ngIf="!environment.production" 
+            routerLink="/debug"
+            matTooltip="Debug Panel">
+      <mat-icon>bug_report</mat-icon>
+    </button>
+    
+    <!-- User menu -->
+    <button mat-icon-button [matMenuTriggerFor]="userMenu" class="user-menu-trigger">
+      <mat-icon>account_circle</mat-icon>
+    </button>
+    
+    <mat-menu #userMenu="matMenu">
+      <div class="user-info">
+        <div class="user-name">{{ getUserDisplayName() }}</div>
+        <div class="user-email" *ngIf="userProfile?.email">{{ userProfile?.email }}</div>
+        <div class="user-roles" *ngIf="userProfile?.roles && (userProfile?.roles?.length || 0) > 0">
+          <span class="role-badge" *ngFor="let role of userProfile?.roles || []">
+            {{ role.name }}
+          </span>
+        </div>
+      </div>
+      
+      <mat-divider></mat-divider>
+      
+      <button mat-menu-item (click)="logout()">
+        <mat-icon>logout</mat-icon>
+        <span>Sign Out</span>
+      </button>
+    </mat-menu>
+  </div>
 </mat-toolbar>
+
 <nav mat-tab-nav-bar [tabPanel]="tabPanel" backgroundColor="primary">
   <a mat-tab-link
      *ngFor="let link of navLinks"

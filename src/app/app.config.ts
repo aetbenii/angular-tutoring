@@ -1,14 +1,36 @@
-import { ApplicationConfig } from '@angular/core';
+import { ApplicationConfig, importProvidersFrom } from '@angular/core';
 import { provideRouter } from '@angular/router';
-import { provideHttpClient } from '@angular/common/http';
+import { HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { provideAnimations } from '@angular/platform-browser/animations';
 
+import { MsalModule, MsalRedirectComponent, MsalGuard } from '@azure/msal-angular';
+import { InteractionType, PublicClientApplication } from '@azure/msal-browser';
+
 import { routes } from './app.routes';
+import { msalConfig, loginRequest } from './auth/msal/msal.config';
+import { AuthInterceptor } from './auth/auth-interceptor';
 
 export const appConfig: ApplicationConfig = {
   providers: [
+    importProvidersFrom(MsalModule.forRoot(new PublicClientApplication(msalConfig),
+      {
+        interactionType: InteractionType.Redirect,
+        authRequest: loginRequest,
+      },
+      {
+        interactionType: InteractionType.Redirect,
+        protectedResourceMap: new Map()
+      }
+    )),
+    {
+      provide: HTTP_INTERCEPTORS,
+      useClass: AuthInterceptor,
+      multi: true
+    },
+    MsalGuard,
+    MsalRedirectComponent,
     provideRouter(routes),
-    provideHttpClient(),
+    provideHttpClient(withInterceptorsFromDi()),
     provideAnimations()
   ]
 };

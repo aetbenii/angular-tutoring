@@ -16,6 +16,55 @@
 
 mat-toolbar {
   padding: 0 1rem;
+  display: flex;
+  align-items: center;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.user-section {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.user-menu-trigger {
+  color: white;
+}
+
+.user-info {
+  padding: 16px;
+  min-width: 200px;
+
+  .user-name {
+    font-weight: 500;
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+
+  .user-email {
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 8px;
+  }
+
+  .user-roles {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+
+  .role-badge {
+    background-color: #e3f2fd;
+    color: #1976d2;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+  }
 }
 
 nav {
