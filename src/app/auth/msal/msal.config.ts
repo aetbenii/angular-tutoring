@@ -1,4 +1,4 @@
-import { LogLevel, Configuration, BrowserCacheLocation, PopupRequest, SilentRequest } from '@azure/msal-browser';
+import { LogLevel, Configuration, BrowserCacheLocation, RedirectRequest, SilentRequest } from '@azure/msal-browser';
 import { isDevelopment } from '../auth.config';
 import { environment } from '../../../environments/environment';
 
@@ -58,7 +58,7 @@ export const msalConfig: Configuration = {
 };
 
 // Login Request Configuration
-export const loginRequest: PopupRequest = {
+export const loginRequest: RedirectRequest = {
   scopes: ['openid', 'profile'],
   extraScopesToConsent: ['openid', 'profile'],
 };

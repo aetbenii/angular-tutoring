@@ -30,9 +30,11 @@ export class LoginComponent {
     try {
       await this.authService.login();
       
-      // Refresh auth state and redirect to dashboard
-      this.authService.refreshAuthState();
-      this.router.navigate(['/dashboard']);
+      // Note: With redirect authentication, the user will be redirected to B2C
+      // and then back to the app. The code below won't execute since the page
+      // will redirect. The app.component.ts will handle the redirect after
+      // successful authentication.
+      
     } catch (error) {
       console.error('Login failed:', error);
       this.isLoading = false;

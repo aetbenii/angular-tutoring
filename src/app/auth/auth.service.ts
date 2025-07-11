@@ -54,8 +54,20 @@ export class AuthService {
     this.msalService.instance.initialize().then(() => {
       if (isDevelopment) console.log('🔐 AuthService: MSAL initialized');
       
-      // Check if user is already logged in
-      this.checkInitialAuthState();
+      // Handle redirect response first (important for redirect flow)
+      return this.msalService.instance.handleRedirectPromise();
+    }).then((response) => {
+      if (isDevelopment) console.log('🔐 AuthService: Redirect response handled:', response);
+      
+      // If we have a response, it means user just logged in via redirect
+      if (response) {
+        this.msalService.instance.setActiveAccount(response.account);
+        this._loginStatus$.next(true);
+        this.loadUserProfile();
+      } else {
+        // Check if user is already logged in from previous session
+        this.checkInitialAuthState();
+      }
       
       // Subscribe to MSAL events
       this.setupMsalEventHandlers();
@@ -130,12 +142,11 @@ export class AuthService {
     console.log('🔐 AuthService: Starting login...');
     
     try {
-      const response = await this.msalService.instance.loginPopup(loginRequest);
-      console.log('🔐 AuthService: Login successful', response);
+      await this.msalService.instance.loginRedirect(loginRequest);
+      console.log('🔐 AuthService: Login redirect initiated');
       
-      this.msalService.instance.setActiveAccount(response.account);
-      this._loginStatus$.next(true);
-      await this.loadUserProfile();
+      // Note: loginRedirect doesn't return a response immediately
+      // The user will be redirected to B2C and back, then MSAL will handle the response
       
     } catch (error) {
       console.error('🔐 AuthService: Login failed', error);
@@ -148,10 +159,11 @@ export class AuthService {
     console.log('🔐 AuthService: Logging out...');
     
     try {
-      await this.msalService.instance.logoutPopup();
-      this._loginStatus$.next(false);
-      this._userProfile$.next(null);
-      this.router.navigate(['/login']);
+      await this.msalService.instance.logoutRedirect({
+        postLogoutRedirectUri: window.location.origin + '/login'
+      });
+      // Note: logoutRedirect will redirect the user, so the code below won't execute
+      // The cleanup will happen when the user returns to the app
     } catch (error) {
       console.error('🔐 AuthService: Logout failed', error);
       throw error;
@@ -192,11 +204,13 @@ export class AuthService {
       
       // Try interactive token acquisition
       try {
-        const response = await this.msalService.instance.acquireTokenPopup({
+        await this.msalService.instance.acquireTokenRedirect({
           ...loginRequest,
           account: account
         });
-        return response.idToken;
+        // Note: acquireTokenRedirect will redirect the user, so we won't get a response here
+        // The token will be available after the redirect completes
+        return null;
       } catch (interactiveError) {
         console.error('🔐 AuthService: Interactive token acquisition failed', interactiveError);
         return null;

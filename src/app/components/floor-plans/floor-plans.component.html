@@ -32,21 +32,23 @@
                   <h3>{{room.name}}</h3>
                   <p class="room-number">Room {{room.roomNumber}}</p>
                 </div>
-                <div class="button-group">
-                  <button mat-raised-button color="primary" 
-                  [routerLink]="['/edit-map', selectedFloor()?.id, room.id]"
-                  class="edit-button">
-                    <mat-icon>edit</mat-icon>
-                    Edit Room
-                  </button>
-                  <button mat-raised-button color="primary" 
-                  (click)="printRoomLabel(room)" 
-                  [disabled]="isRoomEmpty(room)"
-                  class="print-button">
-                    <mat-icon>print</mat-icon>
-                    Print label
-                  </button>
-                </div>
+                @if (isAdmin()) {
+                  <div class="button-group">
+                    <button mat-raised-button color="primary" 
+                    [routerLink]="['/edit-map', selectedFloor()?.id, room.id]"
+                    class="edit-button">
+                      <mat-icon>edit</mat-icon>
+                      Edit Room
+                    </button>
+                    <button mat-raised-button color="primary" 
+                    (click)="printRoomLabel(room)" 
+                    [disabled]="isRoomEmpty(room)"
+                    class="print-button">
+                      <mat-icon>print</mat-icon>
+                      Print label
+                    </button>
+                  </div>
+                }
               </div>
               <div class="employees-list">
                 @for (seat of room.seats; track seat.id) {
@@ -67,28 +69,31 @@
                       }
                       @if (seat?.employeeIds?.length === 0) {
                         <div class="vacant">
-                          <span >
-                          Vacant
+                          <span>
+                            Vacant
                           </span>
-                          <span (click)="onDeleteClick($event, seat.id, seat.seatNumber)" style="cursor: pointer;">
-                            <mat-icon>
-                              delete
-                            </mat-icon>
-                          </span>
+                          @if (isAdmin()) {
+                            <span (click)="onDeleteClick($event, seat.id, seat.seatNumber)" style="cursor: pointer;">
+                              <mat-icon>
+                                delete
+                              </mat-icon>
+                            </span>
+                          }
                         </div>
                       }
                     </div>
                   </div>
                 }
-                <div class="seat-info add-seat" (click)="onAddClick(room.id)">
-                  <mat-icon>
-                    <!-- chair -->
-                     add
-                  </mat-icon>
-                  <span>
-                    Add Seat
-                  </span>
-                </div>
+                @if (isAdmin()) {
+                  <div class="seat-info add-seat" (click)="onAddClick(room.id)">
+                    <mat-icon>
+                      add
+                    </mat-icon>
+                    <span>
+                      Add Seat
+                    </span>
+                  </div>
+                }
               </div>
             </mat-card-content>
           </mat-card>

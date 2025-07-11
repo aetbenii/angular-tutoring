@@ -6,6 +6,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { Router } from '@angular/router';
 import { EmployeeService } from '../../../services/employee.service';
+import { AuthService } from '../../../auth/auth.service';
 import { Seat } from '../../../interfaces/seat.interface';
 import { Employee } from '../../../interfaces/employee.interface';
 
@@ -30,6 +31,7 @@ export class EmployeeSeatsDialogComponent {
   constructor(
     private dialogRef: MatDialogRef<EmployeeSeatsDialogComponent>,
     private employeeService: EmployeeService,
+    private authService: AuthService,
     private router: Router,
     @Inject(MAT_DIALOG_DATA) public employee: Employee
   ) {
@@ -48,6 +50,10 @@ export class EmployeeSeatsDialogComponent {
           this.loading = false;
         }
       });
+  }
+
+  isAdmin(): boolean {
+    return this.authService.isAdmin();
   }
 
   close(): void {

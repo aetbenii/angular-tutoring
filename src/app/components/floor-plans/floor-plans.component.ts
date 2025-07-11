@@ -7,6 +7,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { FloorService } from '../../services/floor.service';
+import { AuthService } from '../../auth/auth.service';
 import { MatButtonModule } from '@angular/material/button';
 import { jsPDF } from 'jspdf';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
@@ -48,6 +49,7 @@ export class FloorPlansComponent implements OnInit {
 
   constructor(
     private floorService: FloorService,
+    private authService: AuthService,
     private dialog: MatDialog,
     private http: HttpClient,
     private snackBar: MatSnackBar
@@ -56,11 +58,19 @@ export class FloorPlansComponent implements OnInit {
     this.selectedFloor = floorService.selectedFloor;
   }
 
+  isAdmin(): boolean {
+    return this.authService.isAdmin();
+  }
+
   isRoomEmpty(room: Room): boolean {
     return !room.seats.some(seat => seat.occupied);
   }
 
   onEmployeeClick(event: Event, employeeId: number, employeeName: string, seatId: number): void {
+    if (!this.isAdmin()) {
+      return; // Only admin can unassign seats
+    }
+    
     event.stopPropagation();
     const dialogRef = this.dialog.open(UnassignSeatDialogComponent, {
       width: '400px',
@@ -76,6 +86,10 @@ export class FloorPlansComponent implements OnInit {
   }
 
   onDeleteClick(event: Event, seatId: number, seatNumber: string){
+    if (!this.isAdmin()) {
+      return; // Only admin can delete seats
+    }
+    
     event.stopPropagation();
     const dialogRef = this.dialog.open(DeleteSeatDialogComponent, {
       width: '400px',
@@ -93,6 +107,10 @@ export class FloorPlansComponent implements OnInit {
   }
 
   onAddClick(roomId: number){
+    if (!this.isAdmin()) {
+      return; // Only admin can add seats
+    }
+    
     const dialogRef = this.dialog.open(AddSeatDialogComponent, {
       width: '400px',
     });
