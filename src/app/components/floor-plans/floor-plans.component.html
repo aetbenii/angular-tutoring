@@ -5,82 +5,95 @@
     <mat-form-field>
       <mat-label>Select Floor</mat-label>
       <mat-select [formControl]="selectedFloorControl">
-        <mat-option *ngFor="let floor of floors()" [value]="floor.floorNumber">
-          {{floor.name}}
-        </mat-option>
+        @for (floor of floors(); track floor.id) {
+          <mat-option [value]="floor.floorNumber">
+            {{floor.name}}
+          </mat-option>
+        }
       </mat-select>
       <mat-icon matSuffix>apartment</mat-icon>
     </mat-form-field>
   </mat-card>
 
   <div class="floor-content">
-    <div *ngIf="loading" class="loading-container">
-      <mat-spinner diameter="40"></mat-spinner>
-    </div>
+    @if (loading) {
+      <div class="loading-container">
+        <mat-spinner diameter="40"></mat-spinner>
+      </div>
+    }
 
-    <div *ngIf="!loading && selectedFloor()" class="rooms-grid">
-      <mat-card *ngFor="let room of selectedFloor()?.rooms" class="room-card">
-        <mat-card-content>
-          <div class="room-header">
-            <div class="room-info">
-              <h3>{{room.name}}</h3>
-              <p class="room-number">Room {{room.roomNumber}}</p>
-            </div>
-            <div class="button-group">
-              <button mat-raised-button color="primary" 
-              [routerLink]="['/edit-map', selectedFloor()?.id, room.id]"
-              class="edit-button">
-                <mat-icon>edit</mat-icon>
-                Edit Room
-              </button>
-              <button mat-raised-button color="primary" 
-              (click)="printRoomLabel(room)" 
-              [disabled]="isRoomEmpty(room)"
-              class="print-button">
-                <mat-icon>print</mat-icon>
-                Print label
-              </button>
-            </div>
-          </div>
-          <div class="employees-list">
-            <div *ngFor="let seat of room.seats" class="seat-info">
-              
-              <div class="seat-number">{{seat.seatNumber}}</div>
-              <div [class.occupied]="seat.occupied" class="employee-info">
-                <ng-container *ngIf="seat.employees">
-                  <span *ngFor="let employee of seat.employees" class="employee-name" tabindex="0" role="button"
-                    [attr.aria-label]="'Manage seat assignment for ' + employee.fullName"
-                    (click)="onEmployeeClick($event, employee.id, employee.fullName, seat.id)"
-                    (keydown.enter)="onEmployeeClick($event, employee.id, employee.fullName, seat.id)"
-                    (keydown.space)="onEmployeeClick($event, employee.id, employee.fullName, seat.id); $event.preventDefault()">
-                    {{employee.fullName}}
-                    <br>
-                  </span>
-                </ng-container>
-                <div *ngIf="seat?.employeeIds?.length === 0" class="vacant">
-                  <span >
-                  Vacant
-                  </span>
-                  <span (click)="onDeleteClick($event, seat.id, seat.seatNumber)" style="cursor: pointer;">
-                    <mat-icon>
-                      delete
-                    </mat-icon>
+    @if (!loading && selectedFloor()) {
+      <div class="rooms-grid">
+        @for (room of selectedFloor()?.rooms; track room.id) {
+          <mat-card class="room-card">
+            <mat-card-content>
+              <div class="room-header">
+                <div class="room-info">
+                  <h3>{{room.name}}</h3>
+                  <p class="room-number">Room {{room.roomNumber}}</p>
+                </div>
+                <div class="button-group">
+                  <button mat-raised-button color="primary" 
+                  [routerLink]="['/edit-map', selectedFloor()?.id, room.id]"
+                  class="edit-button">
+                    <mat-icon>edit</mat-icon>
+                    Edit Room
+                  </button>
+                  <button mat-raised-button color="primary" 
+                  (click)="printRoomLabel(room)" 
+                  [disabled]="isRoomEmpty(room)"
+                  class="print-button">
+                    <mat-icon>print</mat-icon>
+                    Print label
+                  </button>
+                </div>
+              </div>
+              <div class="employees-list">
+                @for (seat of room.seats; track seat.id) {
+                  <div class="seat-info">
+                    <div class="seat-number">{{seat.seatNumber}}</div>
+                    <div [class.occupied]="seat.occupied" class="employee-info">
+                      @if (seat.employees) {
+                        @for (employee of seat.employees; track employee.id) {
+                          <span class="employee-name" tabindex="0" role="button"
+                            [attr.aria-label]="'Manage seat assignment for ' + employee.fullName"
+                            (click)="onEmployeeClick($event, employee.id, employee.fullName, seat.id)"
+                            (keydown.enter)="onEmployeeClick($event, employee.id, employee.fullName, seat.id)"
+                            (keydown.space)="onEmployeeClick($event, employee.id, employee.fullName, seat.id); $event.preventDefault()">
+                            {{employee.fullName}}
+                            <br>
+                          </span>
+                        }
+                      }
+                      @if (seat?.employeeIds?.length === 0) {
+                        <div class="vacant">
+                          <span >
+                          Vacant
+                          </span>
+                          <span (click)="onDeleteClick($event, seat.id, seat.seatNumber)" style="cursor: pointer;">
+                            <mat-icon>
+                              delete
+                            </mat-icon>
+                          </span>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                }
+                <div class="seat-info add-seat" (click)="onAddClick(room.id)">
+                  <mat-icon>
+                    <!-- chair -->
+                     add
+                  </mat-icon>
+                  <span>
+                    Add Seat
                   </span>
                 </div>
               </div>
-            </div>
-            <div class="seat-info add-seat" (click)="onAddClick(room.id)">
-              <mat-icon>
-                <!-- chair -->
-                 add
-              </mat-icon>
-              <span>
-                Add Seat
-              </span>
-            </div>
-          </div>
-        </mat-card-content>
-      </mat-card>
-    </div>
+            </mat-card-content>
+          </mat-card>
+        }
+      </div>
+    }
   </div>
 </div>

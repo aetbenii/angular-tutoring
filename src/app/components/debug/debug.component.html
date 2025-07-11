@@ -36,21 +36,24 @@
       </ng-template>
       
       <div class="tab-content">
-        <mat-card *ngIf="idToken; else noIdToken">
-          <mat-card-header>
-            <mat-card-title>ID Token</mat-card-title>
-            <mat-card-subtitle>Used for user identification</mat-card-subtitle>
-          </mat-card-header>
-          
-          <mat-card-content>
-            <!-- Token Info -->
-            <div class="token-info" *ngIf="decodedIdToken">
-              <p><strong>Issuer:</strong> {{ decodedIdToken.iss }}</p>
-              <p><strong>Subject:</strong> {{ decodedIdToken.sub }}</p>
-              <p><strong>Audience:</strong> {{ decodedIdToken.aud }}</p>
-              <p><strong>Expires:</strong> {{ getTokenExpiration(decodedIdToken) }}</p>
-              <p><strong>Issued At:</strong> {{ getIssuedAt(decodedIdToken) }}</p>
-            </div>
+        @if (idToken) {
+          <mat-card>
+            <mat-card-header>
+              <mat-card-title>ID Token</mat-card-title>
+              <mat-card-subtitle>Used for user identification</mat-card-subtitle>
+            </mat-card-header>
+            
+            <mat-card-content>
+              <!-- Token Info -->
+              @if (decodedIdToken) {
+                <div class="token-info">
+                  <p><strong>Issuer:</strong> {{ decodedIdToken.iss }}</p>
+                  <p><strong>Subject:</strong> {{ decodedIdToken.sub }}</p>
+                  <p><strong>Audience:</strong> {{ decodedIdToken.aud }}</p>
+                  <p><strong>Expires:</strong> {{ getTokenExpiration(decodedIdToken) }}</p>
+                  <p><strong>Issued At:</strong> {{ getIssuedAt(decodedIdToken) }}</p>
+                </div>
+              }
 
             <!-- Raw Token -->
             <mat-expansion-panel>
@@ -78,15 +81,14 @@
               </div>
             </mat-expansion-panel>
           </mat-card-content>
-        </mat-card>
-
-        <ng-template #noIdToken>
+          </mat-card>
+        } @else {
           <mat-card>
             <mat-card-content>
               <p>No ID Token available. Please ensure you are logged in.</p>
             </mat-card-content>
           </mat-card>
-        </ng-template>
+        }
       </div>
     </mat-tab>
 
@@ -114,14 +116,18 @@
               <p><strong>Issued At:</strong> {{ getIssuedAt(decodedAccessToken) }}</p>
               
               <!-- Scopes -->
-              <div *ngIf="getTokenScopes(decodedAccessToken).length > 0">
-                <strong>Scopes:</strong>
-                <mat-chip-set>
-                  <mat-chip *ngFor="let scope of getTokenScopes(decodedAccessToken)">
-                    {{ scope }}
-                  </mat-chip>
-                </mat-chip-set>
-              </div>
+              @if (getTokenScopes(decodedAccessToken).length > 0) {
+                <div>
+                  <strong>Scopes:</strong>
+                  <mat-chip-set>
+                    @for (scope of getTokenScopes(decodedAccessToken); track scope) {
+                      <mat-chip>
+                        {{ scope }}
+                      </mat-chip>
+                    }
+                  </mat-chip-set>
+                </div>
+              }
             </div>
 
             <!-- Raw Token -->
