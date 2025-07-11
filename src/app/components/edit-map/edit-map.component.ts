@@ -10,7 +10,7 @@ import { Seat } from '../../interfaces/seat.interface';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { firstValueFrom, forkJoin } from 'rxjs';
-import { EmployeeService } from '../../services/employee.service';
+
 import { text } from 'd3';
 
 @Component({
@@ -55,7 +55,6 @@ export class EditMapComponent implements OnInit, AfterViewInit{
     constructor(
       private route: ActivatedRoute,
       private roomService: RoomService,
-      private EmployeeService: EmployeeService,
       private snackBar: MatSnackBar,
       private http: HttpClient,
       private cdRef: ChangeDetectorRef
@@ -75,7 +74,8 @@ export class EditMapComponent implements OnInit, AfterViewInit{
         });
 
         this.seats = await Promise.all(seatPromises);
-        this.seats = await this.enrichSeatsWithEmployees(this.seats);
+        // Sort seats by ID for consistent ordering
+        this.seats = this.seats.sort((a, b) => a.id - b.id);
         
         if (this.selectedRoom()) {
           this.initializeSvg(Number(this.floorId));
@@ -88,18 +88,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
     
   }
   
-  private enrichSeatsWithEmployees(seats: Seat[]): Promise<any[]> {
-      return Promise.all(seats.map(async seat => {
-        if (seat.employeeIds && seat.employeeIds.length > 0) {
-          const employees = await Promise.all(
-            seat.employeeIds.map((id: number) => firstValueFrom(this.EmployeeService.getEmployeeById(id)))
-          );
-          return { ...seat, employees };
-        } else {
-          return { ...seat, employees: [] };
-        }
-      }));
-    }
+
 
     onSaveClick(): void{
       const transform = this.roomGroup.attr('transform');

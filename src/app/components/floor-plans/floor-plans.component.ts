@@ -17,10 +17,8 @@ import { Floor } from '../../interfaces/floor.interface';
 import { Room } from '../../interfaces/room.interface';
 import { Signal } from '@angular/core';
 import { RouterModule } from '@angular/router';
-import { EmployeeService } from '../../services/employee.service';
 import { DeleteSeatDialogComponent } from './delete-seat-dialog/delete-seat-dialog.component';
 import { AddSeatDialogComponent } from './add-seat-dialog/add-seat-dialog.component';
-import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-floor-plans',
@@ -52,8 +50,7 @@ export class FloorPlansComponent implements OnInit {
     private floorService: FloorService,
     private dialog: MatDialog,
     private http: HttpClient,
-    private snackBar: MatSnackBar,
-    private employeeService: EmployeeService
+    private snackBar: MatSnackBar
   ) {
     this.floors = floorService.floors;
     this.selectedFloor = floorService.selectedFloor;
@@ -116,18 +113,17 @@ export class FloorPlansComponent implements OnInit {
 
   this.http.post('http://localhost:8080/api/seats', seatData)
     .subscribe({
-      next: async () => {
-        const currentFloor = this.selectedFloorControl.value;
-        if (currentFloor !== null) {
-          await this.floorService.loadFloor(currentFloor);
-          const floor = this.selectedFloor();
-          if (floor) {
-            for (const room of floor.rooms) {
-              room.seats = await this.enrichSeatsWithEmployees(room.seats);
-              room.seats = room.seats.sort((a, b) => a.id - b.id);
+              next: async () => {
+          const currentFloor = this.selectedFloorControl.value;
+          if (currentFloor !== null) {
+            await this.floorService.loadFloor(currentFloor);
+            const floor = this.selectedFloor();
+            if (floor) {
+              for (const room of floor.rooms) {
+                room.seats = room.seats.sort((a, b) => a.id - b.id);
+              }
             }
           }
-        }
         this.snackBar.open('Seat created successfully', 'Close', {
           duration: 3000
         });
@@ -155,7 +151,7 @@ export class FloorPlansComponent implements OnInit {
             const floor = this.selectedFloor();
             if (floor) {
               for (const room of floor.rooms) {
-                room.seats = await this.enrichSeatsWithEmployees(room.seats);
+                room.seats = room.seats.sort((a, b) => a.id - b.id);
               }
             }
           }
@@ -186,7 +182,7 @@ export class FloorPlansComponent implements OnInit {
             const floor = this.selectedFloor();
             if (floor) {
               for (const room of floor.rooms) {
-                room.seats = await this.enrichSeatsWithEmployees(room.seats);
+                room.seats = room.seats.sort((a, b) => a.id - b.id);
               }
             }
           }
@@ -217,10 +213,11 @@ export class FloorPlansComponent implements OnInit {
         await this.floorService.loadFloor(floorNumber);
         const floor = this.selectedFloor();
         if (floor) {
+          // Sort seats by ID for consistent ordering
           for(const room of floor.rooms) {
-            room.seats = await this.enrichSeatsWithEmployees(room.seats);
+            room.seats = room.seats.sort((a, b) => a.id - b.id);
           }
-          console.log('Enriched seats with employees:', floor.rooms);
+          console.log('Floor loaded with embedded employees:', floor.rooms);
         } 
         this.loading = false;
       }
@@ -233,44 +230,7 @@ export class FloorPlansComponent implements OnInit {
     }
   }
 
-  private async enrichSeatsWithEmployees(seats: any[]): Promise<any[]> {
-    // Collect all unique employee IDs from all seats
-    const allEmployeeIds = new Set<number>();
-    seats.forEach(seat => {
-      if (seat.employeeIds && seat.employeeIds.length > 0) {
-        seat.employeeIds.forEach((id: number) => allEmployeeIds.add(id));
-      }
-    });
 
-    // If no employees, return seats with empty employees arrays
-    if (allEmployeeIds.size === 0) {
-      return seats.map(seat => ({ ...seat, employees: [] })).sort((a, b) => a.id - b.id);
-    }
-
-    // Batch fetch all employees in a single request
-    const employeesArray = Array.from(allEmployeeIds);
-    const employees = await firstValueFrom(this.employeeService.getEmployeesByIds(employeesArray));
-    
-    // Create a map for quick lookup
-    const employeeMap = new Map<number, any>();
-    employees?.forEach(employee => {
-      employeeMap.set(employee.id, employee);
-    });
-
-    // Map employees to their seats
-    const enrichedSeats = seats.map(seat => {
-      if (seat.employeeIds && seat.employeeIds.length > 0) {
-        const seatEmployees = seat.employeeIds
-          .map((id: number) => employeeMap.get(id))
-          .filter((employee: unknown) => employee !== undefined);
-        return { ...seat, employees: seatEmployees };
-      } else {
-        return { ...seat, employees: [] };
-      }
-    });
-
-    return enrichedSeats.sort((a, b) => a.id - b.id);
-  }
 
   printRoomLabel(room: Room): void {
     // Create a new PDF document

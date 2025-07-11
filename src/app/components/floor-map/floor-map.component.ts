@@ -403,17 +403,11 @@ export class FloorMapComponent implements OnInit {
       return { roomGroup, room };
     });
 
-    // Then, batch load all employee data for all rooms
-    const allSeats = rooms.flatMap(room => room.seats || []);
-    const enrichedSeats = await this.enrichSeatsWithEmployees(allSeats);
-    
-    // Create a map of seat ID to enriched seat data
-    const seatMap = new Map(enrichedSeats.map(seat => [seat.id, seat]));
-
-    // Finally, draw seats for each room using the pre-loaded data
+    // Draw seats for each room using the embedded employee data
     roomGroups.forEach(({ roomGroup, room }) => {
       if (room.x !== 0 && room.y !== 0) {
-        const roomSeats = (room.seats || []).map(seat => seatMap.get(seat.id) || seat);
+        // Sort seats by ID for consistent ordering
+        const roomSeats = (room.seats || []).sort((a, b) => a.id - b.id);
         this.drawRoomSeats(roomGroup, roomSeats);
       }
     });
@@ -443,14 +437,7 @@ export class FloorMapComponent implements OnInit {
     // Merge entering and updating selections
     const allRooms = enteringRooms.merge(roomSelection);
     
-    // Batch load all employee data for all rooms
-    const allSeats = rooms.flatMap(room => room.seats || []);
-    const enrichedSeats = await this.enrichSeatsWithEmployees(allSeats);
-    
-    // Create a map of seat ID to enriched seat data
-    const seatMap = new Map(enrichedSeats.map(seat => [seat.id, seat]));
-    
-    // Draw room containers and seats
+    // Draw room containers and seats using embedded employee data
     allRooms.each((room: Room, i: number, nodes: Element[]) => {
       const roomGroup = d3.select(nodes[i]);
       
@@ -504,8 +491,8 @@ export class FloorMapComponent implements OnInit {
           </div>
           `);
         
-        // Draw seats
-        const roomSeats = (room.seats || []).map((seat: any) => seatMap.get(seat.id) || seat);
+        // Draw seats with embedded employee data
+        const roomSeats = (room.seats || []).sort((a, b) => a.id - b.id);
         roomSeats.forEach((seat: any) => {
           // Draw seat logic here - simplified for space
           const seatGroup = roomGroup.append('g')
@@ -569,9 +556,10 @@ export class FloorMapComponent implements OnInit {
 
     this.createInfoBox(roomGroup, rect, room);
 
-    room.seats = await this.enrichSeatsWithEmployees(room.seats);
-
-    room.seats.forEach((seat) => {
+    // Sort seats by ID for consistent ordering
+    const sortedSeats = room.seats.sort((a, b) => a.id - b.id);
+    
+    sortedSeats.forEach((seat) => {
       this.drawSeat(roomGroup, seat);
     })
   }
@@ -650,44 +638,7 @@ export class FloorMapComponent implements OnInit {
     }
   }
 
-  private async enrichSeatsWithEmployees(seats: Seat[]): Promise<any[]> {
-    // Collect all unique employee IDs from all seats
-    const allEmployeeIds = seats.reduce((ids: number[], seat) => {
-      if (seat.employeeIds && seat.employeeIds.length > 0) {
-        ids.push(...seat.employeeIds);
-      }
-      return ids;
-    }, []);
 
-    // Remove duplicates
-    const uniqueEmployeeIds = [...new Set(allEmployeeIds)];
-
-    if (uniqueEmployeeIds.length === 0) {
-      return seats.map(seat => ({ ...seat, employees: [] }));
-    }
-
-    try {
-      // Fetch all employees in one batch request
-      const allEmployees = await firstValueFrom(this.employeeService.getEmployeesByIds(uniqueEmployeeIds));
-      
-      // Create a map for quick lookup
-      const employeeMap = new Map(allEmployees?.map(emp => [emp.id, emp]) || []);
-
-      // Map employees to their respective seats
-      return seats.map(seat => {
-        if (seat.employeeIds && seat.employeeIds.length > 0) {
-          const employees = seat.employeeIds.map(id => employeeMap.get(id)).filter(Boolean);
-          return { ...seat, employees };
-        } else {
-          return { ...seat, employees: [] };
-        }
-      });
-    } catch (error) {
-      console.error('Error fetching employees in batch:', error);
-      // Fallback to empty employees if batch fails
-      return seats.map(seat => ({ ...seat, employees: [] }));
-    }
-  }
 
   private createInfoBox(roomGroup: any, rect: any, room: any): void {
 
