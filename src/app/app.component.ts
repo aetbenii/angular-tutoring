@@ -49,9 +49,17 @@ export class AppComponent implements OnInit {
       .subscribe(status => {
         this.isAuthenticated = status;
         
-        // Redirect to login if not authenticated and not already on login page
-        if (!status && !this.router.url.includes('/login')) {
-          this.router.navigate(['/login']);
+        // Handle routing based on authentication status
+        if (status) {
+          // User is authenticated - redirect to dashboard if on login page
+          if (this.router.url === '/login' || this.router.url === '/') {
+            this.router.navigate(['/dashboard']);
+          }
+        } else {
+          // User is not authenticated - redirect to login if not already there
+          if (!this.router.url.includes('/login')) {
+            this.router.navigate(['/login']);
+          }
         }
       });
   }
@@ -59,6 +67,10 @@ export class AppComponent implements OnInit {
   private async initializeApp(): Promise<void> {
     try {
       await this.authService.waitForInitialization();
+      
+      // Refresh authentication state to ensure observables are in sync
+      this.authService.refreshAuthState();
+      
       this.isInitializing = false;
       
       // Initial routing based on authentication status

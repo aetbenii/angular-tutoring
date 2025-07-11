@@ -78,6 +78,23 @@ export class AuthService {
     }
   }
 
+  // Add method to refresh authentication state
+  refreshAuthState(): void {
+    const accounts = this.msalService.instance.getAllAccounts();
+    const isLoggedIn = accounts.length > 0;
+    
+    if (isLoggedIn) {
+      this.msalService.instance.setActiveAccount(accounts[0]);
+      this.loadUserProfile();
+    }
+    
+    this._loginStatus$.next(isLoggedIn);
+    
+    if (isDevelopment) {
+      console.log('🔐 AuthService: Auth state refreshed', { isLoggedIn, accounts: accounts.length });
+    }
+  }
+
   private setupMsalEventHandlers(): void {
     // Handle successful login - listen for account changes
     this.msalService.instance.getActiveAccount();
@@ -142,7 +159,15 @@ export class AuthService {
   }
 
   isLoggedIn(): boolean {
-    return this.msalService.instance.getAllAccounts().length > 0;
+    const accounts = this.msalService.instance.getAllAccounts();
+    const isLoggedIn = accounts.length > 0;
+    
+    // Ensure observable is in sync with actual state
+    if (this._loginStatus$.value !== isLoggedIn) {
+      this._loginStatus$.next(isLoggedIn);
+    }
+    
+    return isLoggedIn;
   }
 
   getUserInfo(): AccountInfo | null {
