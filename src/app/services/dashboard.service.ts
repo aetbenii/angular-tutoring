@@ -1,10 +1,11 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of } from 'rxjs';
+import { Observable, of, throwError } from 'rxjs';
 import { catchError, retry, shareReplay } from 'rxjs/operators';
 import { DashboardStats } from '../interfaces/dashboard.interface';
+import { environment } from '../../environments/environment';
 
-const API_BASE_URL = 'http://localhost:8080/api';
+const API_BASE_URL = environment.apiBaseUrl;
 
 @Injectable({
   providedIn: 'root'
@@ -48,8 +49,16 @@ export class DashboardService {
     this.stats$ = this.http.get<DashboardStats>(this.apiUrl).pipe(
       retry(1),
       catchError((error) => {
-        console.warn('Error fetching stats from server, using mock data:', error);
-        return of(this.mockStats);
+        console.error('Error fetching dashboard stats:', error);
+        
+        // Only use mock data in development mode
+        if (!environment.production) {
+          console.warn('Using mock data in development mode');
+          return of(this.mockStats);
+        }
+        
+        // In production, propagate the error so the UI can show an error state
+        return throwError(() => error);
       }),
       // Cache the last emitted value and share it among all subscribers
       shareReplay(1)

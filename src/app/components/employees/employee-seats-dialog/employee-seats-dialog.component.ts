@@ -1,4 +1,4 @@
-import { Component, Inject } from '@angular/core';
+import { Component, Inject, inject, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatDialogModule, MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -9,6 +9,7 @@ import { EmployeeService } from '../../../services/employee.service';
 import { AuthService } from '../../../auth/auth.service';
 import { Seat } from '../../../interfaces/seat.interface';
 import { Employee } from '../../../interfaces/employee.interface';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 @Component({
   selector: 'app-employee-seats-dialog',
@@ -27,6 +28,7 @@ export class EmployeeSeatsDialogComponent {
   seats: Seat[] = [];
   loading = true;
   error: string | null = null;
+  private destroyRef = inject(DestroyRef);
 
   constructor(
     private dialogRef: MatDialogRef<EmployeeSeatsDialogComponent>,
@@ -40,6 +42,7 @@ export class EmployeeSeatsDialogComponent {
 
   private loadEmployeeSeats(): void {
     this.employeeService.getEmployeeSeats(this.employee.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (seats) => {
           this.seats = seats;

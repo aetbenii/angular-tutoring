@@ -1,4 +1,4 @@
-import { Component, ElementRef, inject, OnInit, signal, ViewChild } from '@angular/core';
+import { Component, ElementRef, inject, OnInit, signal, ViewChild, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -25,6 +25,8 @@ import { setActiveConsumer } from '@angular/core/primitives/signals';
 import { MatInputModule } from '@angular/material/input';
 import { MatAutocompleteModule, MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
 import { catchError, EMPTY, Observable, BehaviorSubject, firstValueFrom } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-floor-map',
@@ -48,12 +50,13 @@ import { catchError, EMPTY, Observable, BehaviorSubject, firstValueFrom } from '
 })
 export class FloorMapComponent implements OnInit {
   @ViewChild('canvasContainer', { static: false }) canvasContainer!: ElementRef;
+  private destroyRef = inject(DestroyRef);
 
   private floorService = inject(FloorService);
   private svg: any;
   private g: any;
   private zoom: any;
-  private apiUrl = 'http://localhost:8080/api';
+  private apiUrl = environment.apiBaseUrl;
 
   loading = signal<boolean>(false);
   error = signal<string | null>(null);
@@ -72,7 +75,9 @@ export class FloorMapComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.selectedFloorControl.valueChanges.subscribe(floorNumber => {
+    this.selectedFloorControl.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(floorNumber => {
       if (floorNumber !== null) {
         this.loading.set(true);
         this.floorService.loadFloor(floorNumber).then(() => {
@@ -91,7 +96,9 @@ export class FloorMapComponent implements OnInit {
       this.selectedFloorControl.setValue(currentFloors[0].floorNumber);
     }
 
-    this.searchControl.valueChanges.subscribe(searchTerm => {
+    this.searchControl.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(searchTerm => {
       if(searchTerm){
         this.employeeService.getEmployees(
           this.searchControl.value || '',
@@ -103,7 +110,8 @@ export class FloorMapComponent implements OnInit {
             this.loading.set(false);
             return EMPTY;
           })
-        ).subscribe(async response => {
+        ).pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe(async response => {
           const expandedList: { id: number; fullName: string; floorName: string; seatId: number }[] = [];
           
           // Collect all seat IDs that need floor info
@@ -163,7 +171,9 @@ export class FloorMapComponent implements OnInit {
   async onEmployeeSelected(event: MatAutocompleteSelectedEvent) {
     const selectedEmployee = event.option.value;
     console.log('Selected employee:', selectedEmployee);
-    this.employeeService.getEmployeeSeats(selectedEmployee.id).subscribe({
+    this.employeeService.getEmployeeSeats(selectedEmployee.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
       next: async (response) => {
         console.log('Employee seats response:', response);
         if(!response){
@@ -255,7 +265,8 @@ export class FloorMapComponent implements OnInit {
     this.http.get(`${this.apiUrl}/floors/${floorNumber}/svg`, { 
       responseType: 'text',
       headers: { 'Accept': 'image/svg+xml' }
-    }).subscribe({
+    }).pipe(takeUntilDestroyed(this.destroyRef))
+    .subscribe({
       next: (svgText) => {
         this.loading.set(false);
         
@@ -335,7 +346,8 @@ export class FloorMapComponent implements OnInit {
     this.http.get(`${this.apiUrl}/floors/${floorNumber}/svg`, { 
       responseType: 'text',
       headers: { 'Accept': 'image/svg+xml' }
-    }).subscribe({
+    }).pipe(takeUntilDestroyed(this.destroyRef))
+    .subscribe({
       next: (svgText) => {
         this.loading.set(false);
         

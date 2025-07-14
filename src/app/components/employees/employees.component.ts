@@ -1,4 +1,4 @@
-import { Component, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
+import { Component, ElementRef, ViewChild, AfterViewInit, inject, DestroyRef, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -11,6 +11,7 @@ import { EmployeeService} from '../../services/employee.service';
 import { debounceTime, distinctUntilChanged, catchError } from 'rxjs/operators';
 import { EMPTY } from 'rxjs';
 import { Employee } from '../../interfaces/employee.interface';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 @Component({
   selector: 'app-employees',
@@ -27,7 +28,7 @@ import { Employee } from '../../interfaces/employee.interface';
   templateUrl: './employees.component.html',
   styleUrls: ['./employees.component.scss']
 })
-export class EmployeesComponent implements AfterViewInit {
+export class EmployeesComponent implements AfterViewInit, OnDestroy {
   @ViewChild('employeesGrid') employeesGrid!: ElementRef;
   @ViewChild('searchInput') searchInput!: ElementRef;
 
@@ -39,6 +40,8 @@ export class EmployeesComponent implements AfterViewInit {
   totalPages = 0;
   searchControl = new FormControl('');
   error: string | null = null;
+  private destroyRef = inject(DestroyRef);
+  private resizeObserver: ResizeObserver | null = null;
 
   constructor(
     private employeeService: EmployeeService,
@@ -46,7 +49,8 @@ export class EmployeesComponent implements AfterViewInit {
   ) {
     this.searchControl.valueChanges.pipe(
       debounceTime(300),
-      distinctUntilChanged()
+      distinctUntilChanged(),
+      takeUntilDestroyed(this.destroyRef)
     ).subscribe(() => {
       this.resetAndSearch();
     });
@@ -56,7 +60,7 @@ export class EmployeesComponent implements AfterViewInit {
     this.loadEmployees();
     
     // Create a ResizeObserver to watch for container size changes
-    const resizeObserver = new ResizeObserver(() => {
+    this.resizeObserver = new ResizeObserver(() => {
       // Debounce the resize callback to prevent multiple rapid calls
       if (this.resizeTimeout) {
         window.clearTimeout(this.resizeTimeout);
@@ -67,7 +71,21 @@ export class EmployeesComponent implements AfterViewInit {
     });
     
     // Start observing the employees grid
-    resizeObserver.observe(this.employeesGrid.nativeElement);
+    this.resizeObserver.observe(this.employeesGrid.nativeElement);
+  }
+
+  ngOnDestroy() {
+    // Clean up ResizeObserver
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = null;
+    }
+    
+    // Clear any pending timeout
+    if (this.resizeTimeout) {
+      window.clearTimeout(this.resizeTimeout);
+      this.resizeTimeout = null;
+    }
   }
 
   private resizeTimeout: number | null = null;
@@ -118,6 +136,8 @@ export class EmployeesComponent implements AfterViewInit {
         this.loading = false;
         return EMPTY;
       })
+    ).pipe(
+      takeUntilDestroyed(this.destroyRef)
     ).subscribe(response => {
       this.employees = [...this.employees, ...response.content];
       this.totalElements = response.totalElements;

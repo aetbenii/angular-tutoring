@@ -1,10 +1,11 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { DashboardService } from '../../services/dashboard.service';
 import { DashboardStats } from '../../interfaces/dashboard.interface';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 @Component({
   selector: 'app-dashboard',
@@ -20,6 +21,7 @@ import { DashboardStats } from '../../interfaces/dashboard.interface';
 })
 export class DashboardComponent implements OnInit {
   stats = signal<DashboardStats | null>(null);
+  private destroyRef = inject(DestroyRef);
 
   constructor(private dashboardService: DashboardService) {}
 
@@ -28,8 +30,10 @@ export class DashboardComponent implements OnInit {
   }
 
   private loadStats(): void {
-    this.dashboardService.getDashboardStats().subscribe(stats => {
-      this.stats.set(stats);
-    });
+    this.dashboardService.getDashboardStats()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(stats => {
+        this.stats.set(stats);
+      });
   }
 } 

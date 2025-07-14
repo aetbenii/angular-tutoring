@@ -296,4 +296,122 @@ describe('FloorPlansComponent', () => {
     expect(component.isRoomEmpty(mockFloor.rooms[0])).toBe(false);
   });
 
+  // Error scenario tests
+  it('should handle error when unassigning seat fails', (done) => {
+    const mockEvent = new Event('click');
+    
+    const dialogRef = jasmine.createSpyObj('MatDialogRef', ['afterClosed'], {
+      componentInstance: {},
+      id: 'test-dialog-id'
+    });
+    dialogRef.afterClosed.and.returnValue(of(true));
+    
+    dialogSpy.open.and.returnValue(dialogRef);
+
+    component.onEmployeeClick(mockEvent, 1, 'John Doe', 1);
+
+    // Verify unassign request and respond with error
+    const req = httpMock.expectOne('http://localhost:8080/api/employees/1/seats/1');
+    expect(req.request.method).toBe('DELETE');
+    req.flush({ message: 'Unassign failed' }, { status: 500, statusText: 'Server Error' });
+
+    // Wait for async operations to complete
+    setTimeout(() => {
+      expect(snackBarSpy.open).toHaveBeenCalledWith('Failed to unassign seat', 'Close', {
+        duration: 5000,
+        horizontalPosition: 'end',
+        verticalPosition: 'top',
+        panelClass: ['error-snackbar']
+      });
+      done();
+    }, 0);
+  });
+
+  it('should handle error when deleting seat fails', (done) => {
+    const mockEvent = new Event('click');
+    
+    const dialogRef = jasmine.createSpyObj('MatDialogRef', ['afterClosed'], {
+      componentInstance: {},
+      id: 'test-dialog-id'
+    });
+    dialogRef.afterClosed.and.returnValue(of(true));
+    
+    dialogSpy.open.and.returnValue(dialogRef);
+    
+    component.onDeleteClick(mockEvent, 1, 'A001-01');
+
+    // Verify delete request and respond with error
+    const req = httpMock.expectOne('http://localhost:8080/api/seats/1');
+    expect(req.request.method).toBe('DELETE');
+    req.flush({ message: 'Delete failed' }, { status: 500, statusText: 'Server Error' });
+
+    // Wait for async operations to complete
+    setTimeout(() => {
+      expect(snackBarSpy.open).toHaveBeenCalledWith('Failed to delete seat', 'Close', {
+        duration: 5000,
+        horizontalPosition: 'end',
+        verticalPosition: 'top',
+        panelClass: ['error-snackbar']
+      });
+      done();
+    }, 0);
+  });
+
+  it('should handle error when creating seat fails', (done) => {
+    const mockEvent = new Event('click');
+    
+    const dialogRef = jasmine.createSpyObj('MatDialogRef', ['afterClosed'], {
+      componentInstance: {},
+      id: 'test-dialog-id'
+    });
+    dialogRef.afterClosed.and.returnValue(of({ seatNumber: 'A001-03' }));
+    
+    dialogSpy.open.and.returnValue(dialogRef);
+    
+    component.onAddClick(mockEvent, 1, 'Room A');
+
+    // Verify create request and respond with error
+    const req = httpMock.expectOne('http://localhost:8080/api/seats');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({
+      seatNumber: 'A001-03',
+      roomId: 1,
+      x: 0,
+      y: 0,
+      width: 50,
+      height: 50,
+      rotation: 0
+    });
+    req.flush({ message: 'Create failed' }, { status: 500, statusText: 'Server Error' });
+
+    // Wait for async operations to complete
+    setTimeout(() => {
+      expect(snackBarSpy.open).toHaveBeenCalledWith('Failed to create seat', 'Close', {
+        duration: 5000,
+        horizontalPosition: 'end',
+        verticalPosition: 'top',
+        panelClass: ['error-snackbar']
+      });
+      done();
+    }, 0);
+  });
+
+  it('should handle error when floor loading fails', async () => {
+    // Set up component with initial value
+    component.selectedFloorControl.setValue(null);
+    fixture.detectChanges();
+
+    // Mock floor service to reject
+    floorService.loadFloor.and.returnValue(Promise.reject(new Error('Failed to load floor')));
+
+    // Trigger floor selection change
+    component.selectedFloorControl.setValue(1);
+
+    // Wait for async operations
+    await fixture.whenStable();
+
+    expect(component.loading).toBe(false);
+    expect(component.error).toBe('Error loading floor data');
+  });
+
 });

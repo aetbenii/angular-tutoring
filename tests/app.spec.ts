@@ -12,8 +12,9 @@ test.describe('Seat Management Application', () => {
   });
 
   test('should navigate to offices page', async ({ page }) => {
-    await page.click('text=Offices');
-    await expect(page).toHaveURL(/.*\/offices/);
+    await page.getByRole('tab', { name: 'Office assignments' }).click();
+    await page.locator('div').filter({ hasText: /^Select Floor$/ }).click();
+    await page.getByRole('option', { name: 'First Floor' }).click();
   });
 
   test('should navigate to employees page', async ({ page }) => {
@@ -23,6 +24,6 @@ test.describe('Seat Management Application', () => {
 
   test('should navigate to floor plans page', async ({ page }) => {
     await page.click('text=Office assignments');
-    await expect(page).toHaveURL(/.*\/floor-plans/);
+    await expect(page).toHaveURL(/.*\/floor-map/);
   });
 }); 

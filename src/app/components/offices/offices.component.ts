@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -17,6 +17,7 @@ import { catchError, map, switchMap } from 'rxjs/operators';
 import { EMPTY, forkJoin, of } from 'rxjs';
 import { Seat } from '../../interfaces/seat.interface';
 import { Employee } from '../../interfaces/employee.interface';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 @Component({
   selector: 'app-offices',
@@ -36,13 +37,15 @@ import { Employee } from '../../interfaces/employee.interface';
   templateUrl: './offices.component.html',
   styleUrls: ['./offices.component.scss']
 })
-export class OfficesComponent implements OnInit {
+export class OfficesComponent implements OnInit, OnDestroy {
   loading = false;
   error: string | null = null;
   selectedFloorControl = new FormControl<number | null>(null);
   floors;
   reservingForEmployee: { id: number; name: string } | null = null;
   employees: Employee[] = [];
+  private destroyRef = inject(DestroyRef);
+  private intervalId: any;
 
   constructor(
     private floorService: FloorService,
@@ -56,7 +59,9 @@ export class OfficesComponent implements OnInit {
 
   ngOnInit() {
     // Check if we're reserving a seat for an employee
-    this.route.queryParams.subscribe(params => {
+    this.route.queryParams
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(params => {
       if (params['employeeId'] && params['employeeName']) {
         this.reservingForEmployee = {
           id: parseInt(params['employeeId']),
@@ -67,7 +72,9 @@ export class OfficesComponent implements OnInit {
     });
 
     // Handle floor selection changes
-    this.selectedFloorControl.valueChanges.subscribe(async floorNumber => {
+    this.selectedFloorControl.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(async floorNumber => {
       if (floorNumber !== null) {
         console.log('Loading floor:', floorNumber);
         this.loading = true;
@@ -101,15 +108,29 @@ export class OfficesComponent implements OnInit {
     checkFloorsAndSetInitial();
     
     // Watch for floors signal changes and retry if floors become available
-    const intervalId = setInterval(() => {
+    this.intervalId = setInterval(() => {
       if (this.floors().length > 0 && this.selectedFloorControl.value === null) {
         checkFloorsAndSetInitial();
-        clearInterval(intervalId);
+        clearInterval(this.intervalId);
+        this.intervalId = null;
       }
     }, 250);
 
     // Clean up the interval after 10 seconds to avoid memory leaks
-    setTimeout(() => clearInterval(intervalId), 10000);
+    setTimeout(() => {
+      if (this.intervalId) {
+        clearInterval(this.intervalId);
+        this.intervalId = null;
+      }
+    }, 10000);
+  }
+
+  ngOnDestroy() {
+    // Clean up interval if still running
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+    }
   }
 
   onSeatSelected(seatId: number) {
@@ -124,6 +145,7 @@ export class OfficesComponent implements OnInit {
       });
       
       this.employeeService.assignSeat(this.reservingForEmployee.id, seatId)
+        .pipe(takeUntilDestroyed(this.destroyRef))
         .subscribe({
           next: () => {
             console.log('Seat assignment successful');
@@ -199,7 +221,8 @@ export class OfficesComponent implements OnInit {
             return of({seat:seat, employees: []});
           }
         })
-      ).subscribe(result => {
+      ).pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(result => {
         console.log(result);
         if (result && result.seat) {
           this.employees = result.employees;

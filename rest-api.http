@@ -1,3 +1,8 @@
+### Variables for different environments
+### Use these by commenting/uncommenting the appropriate line
+@baseUrl = http://localhost:8080
+# @baseUrl = https://your-production-api-url
+
 ### Get Employees with pagination and search
 GET {{baseUrl}}/api/employees?search=engineer&page=0&size=10
 Accept: application/json

@@ -4,6 +4,7 @@ import { Floor } from '../interfaces/floor.interface';
 import { catchError, retry, throwError } from 'rxjs';
 import { Observable } from 'rxjs';
 import { Seat } from '../interfaces/seat.interface';
+import { environment } from '../../environments/environment';
 
 /**
  * Service responsible for managing floor data and seat occupancy state.
@@ -14,7 +15,7 @@ import { Seat } from '../interfaces/seat.interface';
 })
 export class FloorService {
   /** Base URL for the API endpoints */
-  private apiUrl = 'http://localhost:8080/api';
+  private apiUrl = environment.apiBaseUrl;
 
   /** Signal holding the currently selected floor's data */
   private selectedFloorSignal = signal<Floor | null>(null);

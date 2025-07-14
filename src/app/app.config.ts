@@ -9,6 +9,7 @@ import { InteractionType, PublicClientApplication } from '@azure/msal-browser';
 import { routes } from './app.routes';
 import { msalConfig, loginRequest } from './auth/msal/msal.config';
 import { AuthInterceptor } from './auth/auth-interceptor';
+import { HttpErrorInterceptor } from './interceptors/http-error.interceptor';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -25,6 +26,11 @@ export const appConfig: ApplicationConfig = {
     {
       provide: HTTP_INTERCEPTORS,
       useClass: AuthInterceptor,
+      multi: true
+    },
+    {
+      provide: HTTP_INTERCEPTORS,
+      useClass: HttpErrorInterceptor,
       multi: true
     },
     MsalGuard,

@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -20,6 +20,8 @@ import { Signal } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { DeleteSeatDialogComponent } from './delete-seat-dialog/delete-seat-dialog.component';
 import { AddSeatDialogComponent } from './add-seat-dialog/add-seat-dialog.component';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-floor-plans',
@@ -46,6 +48,7 @@ export class FloorPlansComponent implements OnInit {
   selectedFloorControl = new FormControl<number | null>(null);
   floors: Signal<Floor[]>;
   selectedFloor: Signal<Floor | null>;
+  private destroyRef = inject(DestroyRef);
 
   constructor(
     private floorService: FloorService,
@@ -77,12 +80,14 @@ export class FloorPlansComponent implements OnInit {
       data: { employeeId, employeeName }
     });
 
-    dialogRef.afterClosed().subscribe(result => {
-      if (result) {
-        this.unassignSeat(employeeId, seatId);
-        console.log(this.selectedFloor()?.rooms)
-      }
-    });
+    dialogRef.afterClosed()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(result => {
+        if (result) {
+          this.unassignSeat(employeeId, seatId);
+          console.log(this.selectedFloor()?.rooms)
+        }
+      });
   }
 
   onDeleteClick(event: Event, seatId: number, seatNumber: string){
@@ -99,11 +104,13 @@ export class FloorPlansComponent implements OnInit {
       }
     });
 
-    dialogRef.afterClosed().subscribe(result => {
-      if(result){
-        this.deleteSeat(seatId);
-      }
-    });
+    dialogRef.afterClosed()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(result => {
+        if(result){
+          this.deleteSeat(seatId);
+        }
+      });
   }
 
   onAddClick(roomId: number){
@@ -115,12 +122,14 @@ export class FloorPlansComponent implements OnInit {
       width: '400px',
     });
 
-    dialogRef.afterClosed().subscribe(result => {
-      if(result){
-        this.createSeat(result, roomId)
-        console.log(result, roomId);
-      }
-    })
+    dialogRef.afterClosed()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(result => {
+        if(result){
+          this.createSeat(result, roomId)
+          console.log(result, roomId);
+        }
+      })
   }
 
   private createSeat(seatNumber: string, roomId: number): void {
@@ -129,7 +138,8 @@ export class FloorPlansComponent implements OnInit {
     room: { id: roomId }
   };
 
-  this.http.post('http://localhost:8080/api/seats', seatData)
+  this.http.post(`${environment.apiBaseUrl}/seats`, seatData)
+    .pipe(takeUntilDestroyed(this.destroyRef))
     .subscribe({
               next: async () => {
           const currentFloor = this.selectedFloorControl.value;
@@ -160,7 +170,8 @@ export class FloorPlansComponent implements OnInit {
 
 
   private deleteSeat(seatId:number):void{
-    this.http.delete(`http://localhost:8080/api/seats/${seatId}`)
+    this.http.delete(`${environment.apiBaseUrl}/seats/${seatId}`)
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: async () => {
           const currentFloor = this.selectedFloorControl.value;
@@ -190,7 +201,8 @@ export class FloorPlansComponent implements OnInit {
   }
 
   private unassignSeat(employeeId: number, seatId: number): void {
-    this.http.delete(`http://localhost:8080/api/employees/${employeeId}/seats/${seatId}`)
+    this.http.delete(`${environment.apiBaseUrl}/employees/${employeeId}/seats/${seatId}`)
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: async () => {
           // Refresh the floor data
@@ -224,7 +236,9 @@ export class FloorPlansComponent implements OnInit {
 
   async ngOnInit(): Promise<void> {
     // Handle floor selection changes
-    this.selectedFloorControl.valueChanges.subscribe(async floorNumber => {
+    this.selectedFloorControl.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(async floorNumber => {
       if (floorNumber !== null) {
         this.loading = true;
         this.error = null;

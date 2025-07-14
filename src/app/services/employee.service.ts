@@ -4,6 +4,7 @@ import { Observable, throwError, forkJoin, of } from 'rxjs';
 import { catchError, retry, map } from 'rxjs/operators';
 import { Seat } from '../interfaces/seat.interface';
 import { Employee } from '../interfaces/employee.interface';
+import { environment } from '../../environments/environment';
 
 export interface EmployeeResponse {
   content: Employee[];
@@ -13,7 +14,7 @@ export interface EmployeeResponse {
   size: number;
 }
 
-const API_BASE_URL = 'http://localhost:8080/api';
+const API_BASE_URL = environment.apiBaseUrl;
 
 @Injectable({
   providedIn: 'root'

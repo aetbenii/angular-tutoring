@@ -1,4 +1,4 @@
-import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, inject, OnInit, Signal, signal, ViewChild } from '@angular/core';
+import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, inject, OnInit, Signal, signal, ViewChild, DestroyRef } from '@angular/core';
 import { FloorService } from '../../services/floor.service';
 import { FormControl } from '@angular/forms';
 import { ActivatedRoute, RouterModule } from '@angular/router';
@@ -10,6 +10,8 @@ import { Seat } from '../../interfaces/seat.interface';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { firstValueFrom, forkJoin } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { environment } from '../../../environments/environment';
 
 import { text } from 'd3';
 
@@ -28,6 +30,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
   selectedRoomControl = new FormControl<number | null>(null);
   selectedRoom!: Signal<Room | null>;
   floorId: string | null;
+  private destroyRef = inject(DestroyRef);
   roomId: string | null;
   
 
@@ -46,7 +49,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
     private seats: any[] = [];
     private infoBox: any;
     private foreignObject: any;
-    private apiUrl = 'http://localhost:8080/api';
+    private apiUrl = environment.apiBaseUrl;
     
     // Signals for reactive state management
     loading = signal<boolean>(false);
@@ -91,22 +94,52 @@ export class EditMapComponent implements OnInit, AfterViewInit{
 
 
     onSaveClick(): void{
-      const transform = this.roomGroup.attr('transform');
-      const translate = transform.match(/translate\(([^,]+),([^)]+)\)/);
+      // Use DOM API to get transform values reliably
+      const roomElement = this.roomGroup.node() as SVGGElement;
+      let x = 0, y = 0;
+      
+      // Try to get transform from transform list
+      const transformList = roomElement.transform.baseVal;
+      if (transformList.numberOfItems > 0) {
+        for (let i = 0; i < transformList.numberOfItems; i++) {
+          const transform = transformList.getItem(i);
+          if (transform.type === SVGTransform.SVG_TRANSFORM_TRANSLATE) {
+            x = transform.matrix.e;
+            y = transform.matrix.f;
+            break;
+          }
+        }
+      }
+      
       const roomData = {
-        x: parseFloat(translate[1]),
-        y: parseFloat(translate[2]),
+        x: x,
+        y: y,
         width: parseFloat(this.room.attr('width')),
         height: parseFloat(this.room.attr('height')),
       };
       const seatsData: any[] = [];
       this.seatsGeometry.forEach((seat: any) => {
-        const transform = seat.attr('transform');
-        const translate = transform.match(/translate\(([^,]+),([^)]+)\)/) || "0";
+        // Use DOM API to get transform values
+        const seatElement = seat.node() as SVGElement;
+        let x = 0, y = 0;
+        
+        // Get transform from transform list
+        const transformList = (seatElement as any).transform?.baseVal;
+        if (transformList && transformList.numberOfItems > 0) {
+          for (let i = 0; i < transformList.numberOfItems; i++) {
+            const transform = transformList.getItem(i);
+            if (transform.type === SVGTransform.SVG_TRANSFORM_TRANSLATE) {
+              x = transform.matrix.e;
+              y = transform.matrix.f;
+              break;
+            }
+          }
+        }
+        
         const seatData = {
-          rotation: parseFloat(seat.attr('rotation')),
-          x: parseFloat(translate[1]),
-          y: parseFloat(translate[2]),
+          rotation: parseFloat(seat.attr('rotation') || '0'),
+          x: x,
+          y: y,
           width: parseFloat(seat.attr('width')),
           height: parseFloat(seat.attr('height'))
        };
@@ -116,7 +149,9 @@ export class EditMapComponent implements OnInit, AfterViewInit{
       console.log('Room data to be saved:', roomData);
       console.log('Seats data to be saved:', seatsData);
       
-      this.roomService.updateRoom(Number(this.roomId), roomData).subscribe({
+      this.roomService.updateRoom(Number(this.roomId), roomData)
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe({
         next: (response) => {
           console.log('Room updated successfully:', response);
           this.snackBar.open('Room updated successfully', 'Close', {
@@ -135,7 +170,9 @@ export class EditMapComponent implements OnInit, AfterViewInit{
         }
       });
       this.seats.forEach((seat: Seat, index: number) => {
-        this.roomService.updateSeat(Number(this.roomId), Number(seat.id), seatsData[index]).subscribe({
+        this.roomService.updateSeat(Number(this.roomId), Number(seat.id), seatsData[index])
+          .pipe(takeUntilDestroyed(this.destroyRef))
+          .subscribe({
           next: (response) => {
             console.log('Seat updated successfully:', response);
           },
@@ -197,12 +234,21 @@ const getInfoBoxY = (newY: number, roomHeight: number) =>
 this.roomGroup.call(
   d3.drag()
     .on('start', (event) => {
-      const transform = d3.select(this.roomGroup.node()).attr('transform');
-      const translate = transform.match(/translate\(([^,]+),([^)]+)\)/);
-      if (translate) {
-        event.subject.offsetX = event.x - parseFloat(translate[1]);
-        event.subject.offsetY = event.y - parseFloat(translate[2]);
+      // Get current transform using DOM API
+      const roomElement = this.roomGroup.node() as SVGGElement;
+      let currentX = 0, currentY = 0;
+      
+      const transformList = roomElement.transform.baseVal;
+      if (transformList.numberOfItems > 0) {
+        const transform = transformList.getItem(0);
+        if (transform.type === SVGTransform.SVG_TRANSFORM_TRANSLATE) {
+          currentX = transform.matrix.e;
+          currentY = transform.matrix.f;
+        }
       }
+      
+      event.subject.offsetX = event.x - currentX;
+      event.subject.offsetY = event.y - currentY;
     })
     .on('drag', (event) => {
       const newX = event.x - event.subject.offsetX;
@@ -239,7 +285,16 @@ handle.call(d3.drag()
         newWidth = Math.max(newWidth, 10); 
         newHeight = Math.max(newHeight, 10);   
         
-        let roomY = parseFloat(this.roomGroup.attr('transform').split(',')[1].split(')')[0]);
+        // Get room Y position using DOM API
+        const roomElement = this.roomGroup.node() as SVGGElement;
+        let roomY = 0;
+        const transformList = roomElement.transform.baseVal;
+        if (transformList.numberOfItems > 0) {
+          const transform = transformList.getItem(0);
+          if (transform.type === SVGTransform.SVG_TRANSFORM_TRANSLATE) {
+            roomY = transform.matrix.f;
+          }
+        }
         
         rectElement.attr('width', newWidth).attr('height', newHeight);
         this.infoBox.attr('y', (roomY ?? 0) > (this.floorId == '2' ? 400 : 250) ? newHeight : -75);
@@ -265,7 +320,8 @@ handle.call(d3.drag()
       this.http.get(`${this.apiUrl}/floors/${floorNumber}/svg`, { 
         responseType: 'text',
         headers: { 'Accept': 'image/svg+xml' }
-      }).subscribe({
+      }).pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
         next: (svgText) => {
           this.loading.set(false);
           
@@ -336,14 +392,21 @@ handle.call(d3.drag()
       d3.drag()
         .on('start', function (event) {
           const rectElement = d3.select(this);
-          const transform = rectElement.attr('transform');
-          const translate = transform.match(/translate\(([^,]+),([^)]+)\)/);
-          if (translate) {
-            const currentX = parseFloat(translate[1]);
-            const currentY = parseFloat(translate[2]);
-            event.subject.offsetX = event.x - currentX;
-            event.subject.offsetY = event.y - currentY;
+          // Get current transform using DOM API
+          const element = this as SVGElement;
+          let currentX = 0, currentY = 0;
+          
+          const transformList = (element as any).transform?.baseVal;
+          if (transformList && transformList.numberOfItems > 0) {
+            const transform = transformList.getItem(0);
+            if (transform.type === SVGTransform.SVG_TRANSFORM_TRANSLATE) {
+              currentX = transform.matrix.e;
+              currentY = transform.matrix.f;
+            }
           }
+          
+          event.subject.offsetX = event.x - currentX;
+          event.subject.offsetY = event.y - currentY;
         })
         .on('drag', function (event) {
           const rectElement = d3.select(this);
@@ -377,22 +440,30 @@ handle.call(d3.drag()
     )
     .on('click', (event: any) => {
       const rectElement = d3.select(event.currentTarget);
-      const transform = d3.select(event.currentTarget).attr('transform');
-      const translate = transform.match(/translate\(([^,]+),([^)]+)\)/);
-      if (translate) {
-        const bbox = rectElement.node().getBBox();
-        const centerX = bbox.x + bbox.width / 2;
-        const centerY = bbox.y + bbox.height / 2;
-        const x = parseFloat(translate[1]);
-        const y = parseFloat(translate[2]);
-        let newRotation = parseInt(rectElement.attr('rotation')) + 90;
-        
-        if (newRotation == 180) newRotation = 0;
-        rectElement.attr("transform", `translate(${x}, ${y}) rotate(${newRotation}, ${centerX}, ${centerY})`);
-        rectElement.attr('rotation', newRotation);
-        const seatItem = d3.select(seatItemGroup.node());
-        seatItem.select('foreignObject').attr('transform', `translate(${x}, ${y}) rotate(${newRotation}, ${centerX}, ${centerY})`)
+      // Get transform using DOM API
+      const element = event.currentTarget as SVGElement;
+      let x = 0, y = 0;
+      
+      const transformList = (element as any).transform?.baseVal;
+      if (transformList && transformList.numberOfItems > 0) {
+        const transform = transformList.getItem(0);
+        if (transform.type === SVGTransform.SVG_TRANSFORM_TRANSLATE) {
+          x = transform.matrix.e;
+          y = transform.matrix.f;
+        }
       }
+      
+      const bbox = rectElement.node().getBBox();
+      const centerX = bbox.x + bbox.width / 2;
+      const centerY = bbox.y + bbox.height / 2;
+      
+      let newRotation = parseInt(rectElement.attr('rotation')) + 90;
+      
+      if (newRotation == 180) newRotation = 0;
+      rectElement.attr("transform", `translate(${x}, ${y}) rotate(${newRotation}, ${centerX}, ${centerY})`);
+      rectElement.attr('rotation', newRotation);
+      const seatItem = d3.select(seatItemGroup.node());
+      seatItem.select('foreignObject').attr('transform', `translate(${x}, ${y}) rotate(${newRotation}, ${centerX}, ${centerY})`);
     });
 
     const text = this.createText(seat, seatItemGroup);

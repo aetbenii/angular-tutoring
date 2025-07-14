@@ -3,13 +3,14 @@ import { Room } from "../interfaces/room.interface";
 import { HttpClient, HttpErrorResponse } from "@angular/common/http";
 import { catchError, Observable, retry, tap, throwError } from "rxjs";
 import { Seat } from "../interfaces/seat.interface";
+import { environment } from '../../environments/environment';
 
 @Injectable({
     providedIn: 'root'
 })
 export class RoomService {
 
-    private apiUrl = 'http://localhost:8080/api';
+    private apiUrl = environment.apiBaseUrl;
 
     private selectedRoomSignal = signal<Room | null>(null);
 
