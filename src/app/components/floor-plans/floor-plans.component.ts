@@ -242,16 +242,22 @@ export class FloorPlansComponent implements OnInit {
       if (floorNumber !== null) {
         this.loading = true;
         this.error = null;
-        await this.floorService.loadFloor(floorNumber);
-        const floor = this.selectedFloor();
-        if (floor) {
-          // Sort seats by ID for consistent ordering
-          for(const room of floor.rooms) {
-            room.seats = room.seats.sort((a, b) => a.id - b.id);
-          }
-          console.log('Floor loaded with embedded employees:', floor.rooms);
-        } 
-        this.loading = false;
+        try {
+          await this.floorService.loadFloor(floorNumber);
+          const floor = this.selectedFloor();
+          if (floor) {
+            // Sort seats by ID for consistent ordering
+            for(const room of floor.rooms) {
+              room.seats = room.seats.sort((a, b) => a.id - b.id);
+            }
+            console.log('Floor loaded with embedded employees:', floor.rooms);
+          } 
+        } catch (error) {
+          console.error('Error loading floor:', error);
+          this.error = 'Failed to load floor';
+        } finally {
+          this.loading = false;
+        }
       }
     });
 

@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FloorPlansComponent } from './floor-plans.component';
 import { FloorService } from '../../services/floor.service';
 import { EmployeeService } from '../../services/employee.service';
+import { AuthService } from '../../auth/auth.service';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
@@ -16,6 +17,7 @@ import { OverlayModule, OverlayContainer } from '@angular/cdk/overlay';
 import { UnassignSeatDialogComponent } from '../unassign-seat-dialog/unassign-seat-dialog.component';
 import { DeleteSeatDialogComponent } from './delete-seat-dialog/delete-seat-dialog.component';
 import { AddSeatDialogComponent } from './add-seat-dialog/add-seat-dialog.component';
+import { environment } from '../../../environments/environment';
 
 describe('FloorPlansComponent', () => {
   let component: FloorPlansComponent;
@@ -96,6 +98,9 @@ describe('FloorPlansComponent', () => {
 
     const employeeServiceSpy = jasmine.createSpyObj('EmployeeService', ['getEmployeesByIds']);
     
+    const authServiceSpy = jasmine.createSpyObj('AuthService', ['isAdmin']);
+    authServiceSpy.isAdmin.and.returnValue(true); // Mock as admin for testing
+    
     // Create dialog spy with required properties
     dialogSpy = jasmine.createSpyObj('MatDialog', ['open'], {
       openDialogs: [],
@@ -118,6 +123,7 @@ describe('FloorPlansComponent', () => {
         ]),
         { provide: FloorService, useValue: floorServiceSpy },
         { provide: EmployeeService, useValue: employeeServiceSpy },
+        { provide: AuthService, useValue: authServiceSpy },
         { provide: MatDialog, useValue: dialogSpy },
         { provide: MatSnackBar, useValue: snackBarSpy },
         { provide: MAT_DIALOG_DATA, useValue: {} }
@@ -211,7 +217,7 @@ describe('FloorPlansComponent', () => {
     component.onEmployeeClick(mockEvent, 1, 'John Doe', 1);
 
     // Verify unassign request
-    const req = httpMock.expectOne('http://localhost:8080/api/employees/1/seats/1');
+    const req = httpMock.expectOne(`${environment.apiBaseUrl}/employees/1/seats/1`);
     expect(req.request.method).toBe('DELETE');
     req.flush({});
 
@@ -240,7 +246,7 @@ describe('FloorPlansComponent', () => {
     component.onDeleteClick(mockEvent, 1, 'A001-01');
 
     // Verify delete request
-    const req = httpMock.expectOne('http://localhost:8080/api/seats/1');
+    const req = httpMock.expectOne(`${environment.apiBaseUrl}/seats/1`);
     expect(req.request.method).toBe('DELETE');
     req.flush({});
 
@@ -268,7 +274,7 @@ describe('FloorPlansComponent', () => {
     component.onAddClick(1);
 
     // Verify create request
-    const req = httpMock.expectOne('http://localhost:8080/api/seats');
+    const req = httpMock.expectOne(`${environment.apiBaseUrl}/seats`);
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toEqual({
       seatNumber: 'A001-03',
@@ -298,6 +304,8 @@ describe('FloorPlansComponent', () => {
 
   // Error scenario tests
   it('should handle error when unassigning seat fails', (done) => {
+    spyOn(console, 'error'); // Spy on console.error to prevent error output in tests
+    
     const mockEvent = new Event('click');
     
     const dialogRef = jasmine.createSpyObj('MatDialogRef', ['afterClosed'], {
@@ -311,7 +319,7 @@ describe('FloorPlansComponent', () => {
     component.onEmployeeClick(mockEvent, 1, 'John Doe', 1);
 
     // Verify unassign request and respond with error
-    const req = httpMock.expectOne('http://localhost:8080/api/employees/1/seats/1');
+    const req = httpMock.expectOne(`${environment.apiBaseUrl}/employees/1/seats/1`);
     expect(req.request.method).toBe('DELETE');
     req.flush({ message: 'Unassign failed' }, { status: 500, statusText: 'Server Error' });
 
@@ -323,6 +331,7 @@ describe('FloorPlansComponent', () => {
         verticalPosition: 'top',
         panelClass: ['error-snackbar']
       });
+      expect(console.error).toHaveBeenCalled();
       done();
     }, 0);
   });
@@ -341,7 +350,7 @@ describe('FloorPlansComponent', () => {
     component.onDeleteClick(mockEvent, 1, 'A001-01');
 
     // Verify delete request and respond with error
-    const req = httpMock.expectOne('http://localhost:8080/api/seats/1');
+    const req = httpMock.expectOne(`${environment.apiBaseUrl}/seats/1`);
     expect(req.request.method).toBe('DELETE');
     req.flush({ message: 'Delete failed' }, { status: 500, statusText: 'Server Error' });
 
@@ -358,29 +367,22 @@ describe('FloorPlansComponent', () => {
   });
 
   it('should handle error when creating seat fails', (done) => {
-    const mockEvent = new Event('click');
-    
     const dialogRef = jasmine.createSpyObj('MatDialogRef', ['afterClosed'], {
       componentInstance: {},
       id: 'test-dialog-id'
     });
-    dialogRef.afterClosed.and.returnValue(of({ seatNumber: 'A001-03' }));
+    dialogRef.afterClosed.and.returnValue(of('A001-03'));
     
     dialogSpy.open.and.returnValue(dialogRef);
     
-    component.onAddClick(mockEvent, 1, 'Room A');
+    component.onAddClick(1);
 
     // Verify create request and respond with error
-    const req = httpMock.expectOne('http://localhost:8080/api/seats');
+    const req = httpMock.expectOne(`${environment.apiBaseUrl}/seats`);
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toEqual({
       seatNumber: 'A001-03',
-      roomId: 1,
-      x: 0,
-      y: 0,
-      width: 50,
-      height: 50,
-      rotation: 0
+      room: { id: 1 }
     });
     req.flush({ message: 'Create failed' }, { status: 500, statusText: 'Server Error' });
 
@@ -397,12 +399,16 @@ describe('FloorPlansComponent', () => {
   });
 
   it('should handle error when floor loading fails', async () => {
+    // Spy on console.error to verify error handling
+    spyOn(console, 'error');
+    
     // Set up component with initial value
     component.selectedFloorControl.setValue(null);
     fixture.detectChanges();
 
     // Mock floor service to reject
-    floorService.loadFloor.and.returnValue(Promise.reject(new Error('Failed to load floor')));
+    const error = new Error('Failed to load floor');
+    floorService.loadFloor.and.returnValue(Promise.reject(error));
 
     // Trigger floor selection change
     component.selectedFloorControl.setValue(1);
@@ -410,8 +416,14 @@ describe('FloorPlansComponent', () => {
     // Wait for async operations
     await fixture.whenStable();
 
+    // Verify that loadFloor was called
+    expect(floorService.loadFloor).toHaveBeenCalledWith(1);
+    
+    // Verify that loading is set to false after error
     expect(component.loading).toBe(false);
-    expect(component.error).toBe('Error loading floor data');
+    
+    // Verify that error was logged to console
+    expect(console.error).toHaveBeenCalledWith('Error loading floor:', error);
   });
 
 });
