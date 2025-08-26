@@ -73,11 +73,14 @@
                             Vacant
                           </span>
                           @if (isAdmin()) {
-                            <span (click)="onDeleteClick($event, seat.id, seat.seatNumber)" style="cursor: pointer;">
+                            <button type="button" 
+                                    (click)="onDeleteClick($event, seat.id, seat.seatNumber)" 
+                                    class="icon-button"
+                                    [attr.aria-label]="'Delete seat ' + seat.seatNumber">
                               <mat-icon>
                                 delete
                               </mat-icon>
-                            </span>
+                            </button>
                           }
                         </div>
                       }
@@ -85,14 +88,17 @@
                   </div>
                 }
                 @if (isAdmin()) {
-                  <div class="seat-info add-seat" (click)="onAddClick(room.id)">
+                  <button type="button" 
+                          class="seat-info add-seat" 
+                          (click)="onAddClick(room.id)"
+                          [attr.aria-label]="'Add seat to room ' + room.roomNumber">
                     <mat-icon>
                       add
                     </mat-icon>
                     <span>
                       Add Seat
                     </span>
-                  </div>
+                  </button>
                 }
               </div>
             </mat-card-content>

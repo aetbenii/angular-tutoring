@@ -1,10 +1,10 @@
-import { LogLevel, Configuration, BrowserCacheLocation, RedirectRequest, SilentRequest } from '@azure/msal-browser';
+import { LogLevel, Configuration, BrowserCacheLocation, InteractionType } from '@azure/msal-browser';
 import { isDevelopment } from '../auth.config';
 import { environment } from '../../../environments/environment';
 
 const isIE = window.navigator.userAgent.indexOf("MSIE ") > -1 || window.navigator.userAgent.indexOf("Trident/") > -1;
 
-// Azure B2C Configuration - Now fully environment-driven
+// Azure B2C Configuration
 export const b2cPolicies = {
   names: {
     signUpSignIn: 'B2C_1A_SIGNUP_SIGNIN_SPID',
@@ -17,7 +17,12 @@ export const b2cPolicies = {
   authorityDomain: environment.msal.authorityDomain,
 };
 
-// MSAL Configuration - All values now come from environment
+/**
+ * MSAL Configuration for Azure AD B2C
+ * 
+ * For more details, visit:
+ * https://github.com/AzureAD/microsoft-authentication-library-for-js/blob/dev/lib/msal-browser/docs/configuration.md
+ */
 export const msalConfig: Configuration = {
   auth: {
     clientId: environment.msal.clientId,
@@ -27,7 +32,7 @@ export const msalConfig: Configuration = {
     postLogoutRedirectUri: environment.msal.postLogoutRedirectUri,
   },
   cache: {
-    cacheLocation: BrowserCacheLocation.LocalStorage,
+    cacheLocation: BrowserCacheLocation.LocalStorage, // This is more persistent
     storeAuthStateInCookie: isIE, // Set to true for IE11
   },
   system: {
@@ -41,10 +46,10 @@ export const msalConfig: Configuration = {
             console.error(message);
             return;
           case LogLevel.Info:
-            if (isDevelopment) console.info(message);
+            console.info(message);
             return;
           case LogLevel.Verbose:
-            if (isDevelopment) console.debug(message);
+            console.debug(message);
             return;
           case LogLevel.Warning:
             console.warn(message);
@@ -57,20 +62,51 @@ export const msalConfig: Configuration = {
   }
 };
 
-// Login Request Configuration
-export const loginRequest: RedirectRequest = {
-  scopes: ['openid', 'profile'],
-  extraScopesToConsent: ['openid', 'profile'],
+export const apiScope = environment.msal.apiScope;
+
+/**
+ * Scopes you want to request for auth
+ * For more details, see:
+ * https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-permissions-and-consent#scopes
+ */
+export const protectedResources = {
+  api: {
+    endpoint: environment.msal.apiEndpoint,
+    scopes: [apiScope],
+  }
 };
 
-// Silent Request Configuration
-export const silentRequest: SilentRequest = {
-  scopes: ['openid', 'profile'],
-  forceRefresh: false,
+/**
+ * Login Request configuration
+ * Following MSAL B2C best practices:
+ * - 'openid' for ID tokens
+ * - 'profile' for user profile info
+ * - 'offline_access' for refresh tokens
+ * - API scope for access tokens
+ */
+export const loginRequest = {
+  scopes: [
+    'openid',
+    'profile',
+    'offline_access',
+    apiScope
+  ],
 };
 
-// API Configuration
-export const apiConfig = {
-  scopes: ['openid', 'profile'],
-  uri: environment.production ? environment.msal.apiEndpoint : 'http://localhost:8080/api',
+/**
+ * Access Token Request configuration for API calls
+ */
+export const accessTokenRequest = {
+  scopes: [apiScope],
+  account: null as unknown
 };
+
+/**
+ * Add here the endpoints for which you want to acquire a token.
+ */
+export const msalInterceptorConfig = {
+  interactionType: InteractionType.Redirect, // or 'popup'
+  protectedResourceMap: new Map([
+    [protectedResources.api.endpoint + '/*', protectedResources.api.scopes]
+  ])
+}; 

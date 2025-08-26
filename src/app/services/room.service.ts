@@ -1,4 +1,4 @@
-import { Injectable, Signal, signal } from "@angular/core";
+import { Injectable, signal } from "@angular/core";
 import { Room } from "../interfaces/room.interface";
 import { HttpClient, HttpErrorResponse } from "@angular/common/http";
 import { catchError, Observable, retry, tap, throwError } from "rxjs";
@@ -61,7 +61,7 @@ export class RoomService {
         });
     }
 
-    loadRoom(roomId: number): Observable<any> {
+    loadRoom(roomId: number): Observable<Room> {
         return this.http.get<Room>(`${this.apiUrl}/rooms/${roomId}`, {
             headers: {
                 'Accept': 'application/json'
@@ -77,8 +77,8 @@ export class RoomService {
         )
     }
 
-    updateRoom(id: number, updates: any): Observable<any> {
-    return this.http.patch(`${this.apiUrl}/rooms/${id}/geometry`, updates, {
+    updateRoom(id: number, updates: Partial<Room>): Observable<Room> {
+    return this.http.patch<Room>(`${this.apiUrl}/rooms/${id}/geometry`, updates, {
         headers: { 'Content-Type': 'application/json' }
     }).pipe(
         catchError(error => {
@@ -88,8 +88,8 @@ export class RoomService {
     );
     }
 
-    updateSeat(roomId: number, seatId: number, updates: any): Observable<any> {
-        return this.http.patch(`${this.apiUrl}/rooms/${roomId}/seats/${seatId}/geometry`, updates, {
+    updateSeat(roomId: number, seatId: number, updates: Partial<Seat>): Observable<Seat> {
+        return this.http.patch<Seat>(`${this.apiUrl}/rooms/${roomId}/seats/${seatId}/geometry`, updates, {
             headers: { 'Content-Type': 'application/json' }
         }).pipe(
             catchError(error => {

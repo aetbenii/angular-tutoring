@@ -6,17 +6,12 @@ import { AuthService } from '../../auth/auth.service';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
-import { provideAnimations } from '@angular/platform-browser/animations';
-import { MatDialog, MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { MatDialog, MatDialogModule, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { signal } from '@angular/core';
-import { of, Subject } from 'rxjs';
+import { of } from 'rxjs';
 import { Room } from '../../interfaces/room.interface';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { OverlayModule, OverlayContainer } from '@angular/cdk/overlay';
-import { UnassignSeatDialogComponent } from '../unassign-seat-dialog/unassign-seat-dialog.component';
-import { DeleteSeatDialogComponent } from './delete-seat-dialog/delete-seat-dialog.component';
-import { AddSeatDialogComponent } from './add-seat-dialog/add-seat-dialog.component';
 import { environment } from '../../../environments/environment';
 
 describe('FloorPlansComponent', () => {

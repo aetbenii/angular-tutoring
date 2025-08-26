@@ -1,8 +1,8 @@
 import { CommonModule } from "@angular/common";
-import { Component, Inject } from "@angular/core";
+import { Component } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { MatButtonModule } from "@angular/material/button";
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from "@angular/material/dialog";
+import { MatDialogModule, MatDialogRef } from "@angular/material/dialog";
 import { MatFormField, MatLabel } from "@angular/material/form-field";
 import { MatInputModule } from "@angular/material/input";
 
@@ -18,7 +18,7 @@ import { MatInputModule } from "@angular/material/input";
 
 })
 export class AddSeatDialogComponent{
-    seatNumber: string = '';
+    seatNumber = '';
 
     constructor(
         public dialogRef: MatDialogRef<AddSeatDialogComponent>) {}

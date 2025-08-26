@@ -20,12 +20,14 @@
               </div>
               <div class="seats">
                 @for (seat of room.seats; track seat.id) {
-                  <div 
+                  <button 
                     class="seat" 
                     [class.occupied]="seat.occupied"
-                    (click)="onSeatClick(room.id, seat.id)">
+                    (click)="onSeatClick(room.id, seat.id)"
+                    [attr.aria-label]="'Seat ' + seat.seatNumber + (seat.occupied ? ' (occupied)' : ' (available)')"
+                    type="button">
                     {{ seat.seatNumber }}
-                  </div>
+                  </button>
                 }
               </div>
             </div>

@@ -10,7 +10,7 @@ import { Component } from '@angular/core';
 @Component({ 
   selector: 'app-mock-dashboard',
   template: '',
-  standalone: false 
+  standalone: true 
 })
 class MockDashboardComponent { }
 
@@ -34,9 +34,9 @@ describe('AppComponent', () => {
           { path: '**', redirectTo: 'dashboard' }
         ]),
         HttpClientTestingModule,
-        AppComponent
+        AppComponent,
+        MockDashboardComponent
       ],
-      declarations: [MockDashboardComponent],
       providers: [
         { provide: AuthService, useValue: authServiceSpy }
       ]
@@ -88,9 +88,9 @@ describe('AppComponent', () => {
           { path: '**', redirectTo: 'dashboard' }
         ]),
         HttpClientTestingModule,
-        AppComponent
+        AppComponent,
+        MockDashboardComponent
       ],
-      declarations: [MockDashboardComponent],
       providers: [
         { provide: AuthService, useValue: authServiceSpyTrue }
       ]

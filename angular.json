@@ -51,11 +51,18 @@
                   "maximumError": "8kB"
                 }
               ],
+              "outputHashing": "all"
+            },
+            "test": {
+              "optimization": true,
+              "extractLicenses": true,
+              "sourceMap": false,
               "outputHashing": "all",
+              "baseHref": "/",
               "fileReplacements": [
                 {
-                  "replace": "src/app/components/debug/debug.component.ts",
-                  "with": "src/app/components/debug/debug.component.prod.ts"
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.test.ts"
                 }
               ]
             },
@@ -90,6 +97,7 @@
               "zone.js/testing"
             ],
             "tsConfig": "tsconfig.spec.json",
+            "karmaConfig": "karma.conf.js",
             "inlineStyleLanguage": "scss",
             "assets": [
               {

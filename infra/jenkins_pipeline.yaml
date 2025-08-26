@@ -1,0 +1,70 @@
+job_name: "SA-NA/HR-Seats/HR-Seats-Push.FE"
+
+description: |
+  <h1>HR-Seats Frontend Deployment Pipeline</h1>
+  <img src="https://img.shields.io/badge/Azure%20project-hr_seats-blue?style=for-the-badge" alt="Status Badge">
+  <p><strong>Purpose:</strong> Deploy the HR-Seats Angular application to TEST and PROD environments.</p>
+  
+  <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 10px; margin: 10px 0;">
+    <strong>&#9888; Important:</strong> This file is automatically managed by the Jenkins-Manager utility.<br>
+    Changes will be overwritten by the Azure Pipeline automation.
+  </div>
+    
+  <h3>Environment URLs</h3>
+  <table style="border-collapse: collapse; width: 100%;">
+    <tr>
+      <td style="padding: 8px; border: 1px solid #ddd; background-color: #e8f5e9;"><strong>TEST:</strong></td>
+      <td style="padding: 8px; border: 1px solid #ddd;"><a href="https://test-desk.services.siag.it">https://test-desk.services.siag.it</a></td>
+    </tr>
+    <tr>
+      <td style="padding: 8px; border: 1px solid #ddd; background-color: #fff3e0;"><strong>PROD:</strong></td>
+      <td style="padding: 8px; border: 1px solid #ddd;"><a href="https://desk.services.siag.it">https://desk.services.siag.it</a></td>
+    </tr>
+  </table>
+
+# Job parameters
+parameters:
+  - name: war_file
+    type: file
+    description: "it is actually the zip file to deploy"
+    
+  - name: target_env
+    type: choice
+    description: "Deployment environment"
+    choices:
+      - TEST
+      - PROD
+
+# Build script
+builders:
+  - type: shell
+    command: |
+      mv $WORKSPACE/war_file $WORKSPACE/desk.tar.gz
+      echo "Deploying ${war_file} as desk.tar.gz to ${target_env}"
+      ssh -i ${SSH_KEY_FILE} ${SSH_USER}@ans-prd-a.siag.it \
+        "/opt/siag/bin/jk.deploy.sh ${DEPLOY_TARGET} ${JOB_URL}ws/desk.tar.gz"
+
+# Build configuration
+build_wrappers:
+  # Clean workspace before build (simple flag)
+  - type: workspace_cleanup
+    delete_dirs: true
+  
+  # SSH credentials for deployment
+  - type: credentials_binding
+    bindings:
+      - binding_type: ssh_key
+        credentials_id: ansible-deploy-key
+        key_file_variable: SSH_KEY_FILE
+        username_variable: SSH_USER
+        passphrase_variable: SSH_NOT_USED
+  
+  # Set environment based on target
+  - type: environment_script
+    script_type: unixScript
+    script: |
+      if [ "${target_env}" = "TEST" ]; then
+        echo "DEPLOY_TARGET=test-desk.services.siag.it@static"
+      elif [ "${target_env}" = "PROD" ]; then
+        echo "DEPLOY_TARGET=desk.services.siag.it@static"
+      fi

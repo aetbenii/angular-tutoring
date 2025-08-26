@@ -1,5 +1,4 @@
 import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, inject, OnInit, Signal, signal, ViewChild, DestroyRef } from '@angular/core';
-import { FloorService } from '../../services/floor.service';
 import { FormControl } from '@angular/forms';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import * as d3 from 'd3';
@@ -9,11 +8,10 @@ import { HttpClient } from '@angular/common/http';
 import { Seat } from '../../interfaces/seat.interface';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { firstValueFrom, forkJoin } from 'rxjs';
+import { firstValueFrom } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { environment } from '../../../environments/environment';
 
-import { text } from 'd3';
 
 @Component({
   selector: 'app-edit-map',
@@ -35,20 +33,20 @@ export class EditMapComponent implements OnInit, AfterViewInit{
   
 
   @ViewChild('canvasContainer', { static: false }) canvasContainer!: ElementRef;
-    private roomObj: any;
+    private roomObj: Room | null = null;
     //SVG
-    private svg: any;
-    private g: any;
-    private roomGroup: any;
-    private room: any;
-    private seat: any;
-    private seatGroup: any;
-    private text: any;
-    private seatsGeometry: Set<d3.Selection<SVGRectElement, any, null, undefined>> = new Set();
-    private zoom: any;
-    private seats: any[] = [];
-    private infoBox: any;
-    private foreignObject: any;
+    private svg!: d3.Selection<SVGSVGElement, unknown, null, undefined>;
+    private g!: d3.Selection<SVGGElement, unknown, null, undefined>;
+    private roomGroup!: d3.Selection<SVGGElement, unknown, null, undefined>;
+    private room!: d3.Selection<SVGRectElement, unknown, null, undefined>;
+    private seat!: d3.Selection<SVGRectElement, unknown, null, undefined>;
+    private seatGroup!: d3.Selection<SVGGElement, unknown, null, undefined>;
+    private text!: d3.Selection<SVGTextElement, unknown, null, undefined>;
+    private seatsGeometry = new Set<d3.Selection<SVGRectElement, unknown, null, undefined>>();
+    private zoom!: d3.ZoomBehavior<Element, unknown>;
+    private seats: Seat[] = [];
+    private infoBox!: d3.Selection<SVGRectElement, unknown, null, undefined>;
+    private foreignObject!: d3.Selection<SVGForeignObjectElement, unknown, null, undefined>;
     private apiUrl = environment.apiBaseUrl;
     
     // Signals for reactive state management
@@ -88,7 +86,12 @@ export class EditMapComponent implements OnInit, AfterViewInit{
   }
 
   ngAfterViewInit(): void {
-    
+    // Initialize view after component is ready
+    this.initializeView();
+  }
+  
+  private initializeView(): void {
+    // View initialization logic will be added here if needed
   }
   
 
@@ -117,14 +120,14 @@ export class EditMapComponent implements OnInit, AfterViewInit{
         width: parseFloat(this.room.attr('width')),
         height: parseFloat(this.room.attr('height')),
       };
-      const seatsData: any[] = [];
-      this.seatsGeometry.forEach((seat: any) => {
+      const seatsData: Partial<Seat>[] = [];
+      this.seatsGeometry.forEach((seat) => {
         // Use DOM API to get transform values
         const seatElement = seat.node() as SVGElement;
         let x = 0, y = 0;
         
         // Get transform from transform list
-        const transformList = (seatElement as any).transform?.baseVal;
+        const transformList = (seatElement as SVGGraphicsElement & { transform?: { baseVal?: SVGTransformList } }).transform?.baseVal;
         if (transformList && transformList.numberOfItems > 0) {
           for (let i = 0; i < transformList.numberOfItems; i++) {
             const transform = transformList.getItem(i);
@@ -215,13 +218,13 @@ export class EditMapComponent implements OnInit, AfterViewInit{
       this.room = this.roomGroup.append('rect')
         .attr('x', 0)
         .attr('y', 0)
-        .attr('width', this.selectedRoom()?.width)
-        .attr('height', this.selectedRoom()?.height)
+        .attr('width', this.selectedRoom()?.width || 0)
+        .attr('height', this.selectedRoom()?.height || 0)
         .attr('fill', 'rgba(223, 223, 223, 0.57)')
         .attr('stroke', 'black')
         .attr('stroke-width', 2);
 
-        this.createInfoBox.call(this, this.roomGroup, this.room);
+        this.createInfoBox.call(this, this.roomGroup, this.selectedRoom()!);
         
        
 const INFOBOX_Y_THRESHOLD = this.floorId == '2' ? 750 : 250;
@@ -232,7 +235,7 @@ const getInfoBoxY = (newY: number, roomHeight: number) =>
   newY > INFOBOX_Y_THRESHOLD ? roomHeight : INFOBOX_Y_OFFSET;
 
 this.roomGroup.call(
-  d3.drag()
+  d3.drag<SVGGElement, unknown>()
     .on('start', (event) => {
       // Get current transform using DOM API
       const roomElement = this.roomGroup.node() as SVGGElement;
@@ -269,7 +272,7 @@ const handle = this.roomGroup.append('circle')
   .attr('fill', 'blue')
   .style('cursor', 'pointer');
 
-handle.call(d3.drag()
+handle.call(d3.drag<SVGCircleElement, unknown>()
     .on('start', (event) => {
         const rectElement = this.room;
         event.subject.offsetX = event.x - parseFloat(rectElement.attr('x'));
@@ -313,7 +316,7 @@ handle.call(d3.drag()
       const seatItemGroup = this.seatGroup.append('g')
         .attr('class', 'seat-item')
         .attr('id', seat.id);
-      this.createSmallRect.call(this,seat, this.room, seatItemGroup, this.seatsGeometry);
+      this.createSmallRect.call(this, seat, this.selectedRoom()!, seatItemGroup, this.seatsGeometry);
     });
       // Load the background SVG using Angular HttpClient (which goes through auth interceptor)
       console.log(`Loading SVG from: ${this.apiUrl}/floors/${floorNumber}/svg`);
@@ -341,7 +344,7 @@ handle.call(d3.drag()
           }
           
           // Append the background SVG content to our background layer
-          backgroundGroup.node().appendChild(backgroundSvg);
+          (backgroundGroup.node() as Element).appendChild(backgroundSvg);
           
           if(this.floorId == '2'){
             d3.select(backgroundSvg)
@@ -360,7 +363,7 @@ handle.call(d3.drag()
       });
     }
     
-    private configureZoom(backgroundGroup: any): void {
+    private configureZoom(backgroundGroup: d3.Selection<SVGGElement, unknown, null, undefined>): void {
       // Configure D3 zoom behavior for pan and zoom functionality
       this.zoom = d3.zoom()
         .scaleExtent([0.1, 4]) // Limit zoom scale between 0.1x and 4x
@@ -371,14 +374,14 @@ handle.call(d3.drag()
         });
   
       // Apply zoom behavior to the SVG
-      this.svg.call(this.zoom);
+      this.svg.call(this.zoom as any);
       
       // Set initial zoom transform for better initial view
       const initialTransform = d3.zoomIdentity.translate(100, 100).scale(0.8);
-      this.svg.call(this.zoom.transform, initialTransform);
+      this.svg.call(this.zoom.transform as any, initialTransform);
     }
 
-    private createSmallRect(seat: Seat, room: any, seatItemGroup: any, seats: Set<any>): void {
+    private createSmallRect(seat: Seat, room: Room, seatItemGroup: d3.Selection<SVGGElement, unknown, null, undefined>, seats: Set<d3.Selection<SVGRectElement, unknown, null, undefined>>): void {
     const rect = seatItemGroup.append('rect')
     .attr('id', seat.id)
     .attr('transform', `translate(${seat.x}, ${seat.y}) rotate(${seat.rotation}, ${seat.width / 2}, ${seat.height / 2})`)
@@ -389,14 +392,14 @@ handle.call(d3.drag()
     .attr('stroke-width', 2)
     .attr('rotation', seat.rotation)
     .call(
-      d3.drag()
+      d3.drag<SVGRectElement, unknown>()
         .on('start', function (event) {
-          const rectElement = d3.select(this);
+          d3.select(this);
           // Get current transform using DOM API
           const element = this as SVGElement;
           let currentX = 0, currentY = 0;
           
-          const transformList = (element as any).transform?.baseVal;
+          const transformList = (element as SVGGraphicsElement).transform?.baseVal;
           if (transformList && transformList.numberOfItems > 0) {
             const transform = transformList.getItem(0);
             if (transform.type === SVGTransform.SVG_TRANSFORM_TRANSLATE) {
@@ -409,12 +412,12 @@ handle.call(d3.drag()
           event.subject.offsetY = event.y - currentY;
         })
         .on('drag', function (event) {
-          const rectElement = d3.select(this);
+          const rectElement = d3.select(this) as d3.Selection<SVGRectElement, unknown, null, undefined>;
           const currentRotation = parseInt(rectElement.attr('rotation') || '0');
           const largeX = 0;
           const largeY = 0;
-          const largeWidth = parseFloat(room.attr('width'));
-          const largeHeight = parseFloat(room.attr('height'));
+          const largeWidth = room.width;
+          const largeHeight = room.height;
           let newX = event.x - event.subject.offsetX;
           let newY = event.y - event.subject.offsetY;
           newX = Math.max(
@@ -438,13 +441,13 @@ handle.call(d3.drag()
           group.select('foreignObject').attr('transform', `translate(${newX}, ${newY}) rotate(${currentRotation}, ${centerX}, ${centerY})`);
         })
     )
-    .on('click', (event: any) => {
-      const rectElement = d3.select(event.currentTarget);
+    .on('click', (event: MouseEvent) => {
+      const rectElement = d3.select(event.currentTarget as SVGRectElement);
       // Get transform using DOM API
       const element = event.currentTarget as SVGElement;
       let x = 0, y = 0;
       
-      const transformList = (element as any).transform?.baseVal;
+      const transformList = (element as SVGGraphicsElement).transform?.baseVal;
       if (transformList && transformList.numberOfItems > 0) {
         const transform = transformList.getItem(0);
         if (transform.type === SVGTransform.SVG_TRANSFORM_TRANSLATE) {
@@ -453,7 +456,7 @@ handle.call(d3.drag()
         }
       }
       
-      const bbox = rectElement.node().getBBox();
+      const bbox = rectElement.node()!.getBBox();
       const centerX = bbox.x + bbox.width / 2;
       const centerY = bbox.y + bbox.height / 2;
       
@@ -466,12 +469,12 @@ handle.call(d3.drag()
       seatItem.select('foreignObject').attr('transform', `translate(${x}, ${y}) rotate(${newRotation}, ${centerX}, ${centerY})`);
     });
 
-    const text = this.createText(seat, seatItemGroup);
+    this.createText(seat, seatItemGroup);
     console.log(seatItemGroup.node())
     seats.add(rect);
   }
 
-  private createText(seat: Seat, seatItemGroup: any): any {
+  private createText(seat: Seat, seatItemGroup: d3.Selection<SVGGElement, unknown, null, undefined>): d3.Selection<SVGForeignObjectElement, unknown, null, undefined> {
     const text = seatItemGroup.append('foreignObject')
       .attr('transform', `translate(${seat.x}, ${seat.y})`)
       .attr('transform', seat.rotation === 0 ? `
@@ -497,7 +500,7 @@ handle.call(d3.drag()
             font-size: 9px;
             writing-mode: sideways-lr; 
           ">
-            ${seat.employees.map((e: any) => e.fullName).join('<br/>')}
+            ${seat.employees.map((e) => e.fullName).join('<br/>')}
           </div>
         </div>
       `;
@@ -530,11 +533,11 @@ handle.call(d3.drag()
     return text;
   }
 
- private createInfoBox(roomGroup: any, room: any): void {
+ private createInfoBox(roomGroup: d3.Selection<SVGGElement, unknown, null, undefined>, room: Room): void {
     this.infoBox = roomGroup.append('rect')
       .attr('x', 10)
-      .attr('y', (this.selectedRoom()?.y ?? 0) > 900 ? room.attr('height') : -75)
-      .attr('width', room.attr('width') - 20)
+      .attr('y', (this.selectedRoom()?.y ?? 0) > 900 ? room.height : -75)
+      .attr('width', room.width - 20)
       .attr('height', 75)
       .attr('fill', 'rgb(254, 243, 205)')
       .attr('stroke', 'black')
@@ -546,7 +549,7 @@ handle.call(d3.drag()
       .attr('width', this.infoBox.attr('width'))
       .attr('height', 75)
   
-    const htmlContent = this.foreignObject.append('xhtml:div')
+    this.foreignObject.append('xhtml:div')
       .style('height', '100%')
       .style('padding', '0px')
       .style('font-size', '14px')
@@ -554,9 +557,9 @@ handle.call(d3.drag()
       .html(`
         <div style="display: flex; flex-direction: column; gap: 0; height: 100%; justify-content: center;">
           <div style="text-align: center;">
-            <b>${this.selectedRoom()?.name}</b> 
+            <b>${room.name}</b> 
             <br/>
-            <b>${this.selectedRoom()?.roomNumber}</b>
+            <b>${room.roomNumber}</b>
           </div>
         </div>
       `)

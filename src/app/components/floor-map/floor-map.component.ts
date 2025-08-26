@@ -8,23 +8,17 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { FloorService } from '../../services/floor.service';
 import { MatButtonModule } from '@angular/material/button';
-import { jsPDF } from 'jspdf';
-import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { UnassignSeatDialogComponent } from '../unassign-seat-dialog/unassign-seat-dialog.component';
+import { MatDialogModule } from '@angular/material/dialog';
 import { HttpClient } from '@angular/common/http';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { Floor } from '../../interfaces/floor.interface';
 import { Room } from '../../interfaces/room.interface';
-import { Signal } from '@angular/core';
+import { AfterViewInit } from '@angular/core';
 import * as d3 from 'd3';
-import { RoomService } from '../../services/room.service';
 import { Seat } from '../../interfaces/seat.interface';
-import { SeatInfoDialogComponent } from '../offices/seat-info-dialog/seat-info-dialog.component';
 import { EmployeeService } from '../../services/employee.service';
-import { setActiveConsumer } from '@angular/core/primitives/signals';
 import { MatInputModule } from '@angular/material/input';
 import { MatAutocompleteModule, MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
-import { catchError, EMPTY, Observable, BehaviorSubject, firstValueFrom } from 'rxjs';
+import { catchError, EMPTY, BehaviorSubject, firstValueFrom } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { environment } from '../../../environments/environment';
 
@@ -48,14 +42,14 @@ import { environment } from '../../../environments/environment';
   templateUrl: './floor-map.component.html',
   styleUrls: ['./floor-map.component.scss']
 })
-export class FloorMapComponent implements OnInit {
+export class FloorMapComponent implements OnInit, AfterViewInit {
   @ViewChild('canvasContainer', { static: false }) canvasContainer!: ElementRef;
   private destroyRef = inject(DestroyRef);
 
   private floorService = inject(FloorService);
-  private svg: any;
-  private g: any;
-  private zoom: any;
+  private svg!: d3.Selection<SVGSVGElement, unknown, null, undefined>;
+  private g!: d3.Selection<SVGGElement, unknown, null, undefined>;
+  private zoom!: d3.ZoomBehavior<Element, unknown>;
   private apiUrl = environment.apiBaseUrl;
 
   loading = signal<boolean>(false);
@@ -162,7 +156,17 @@ export class FloorMapComponent implements OnInit {
     });
   }
 
-  ngAfterViewInit(): void {}
+  ngAfterViewInit(): void {
+    // Component view is initialized
+    this.checkCanvasContainer();
+  }
+  
+  private checkCanvasContainer(): void {
+    // Verify canvas container is available
+    if (this.canvasContainer) {
+      console.log('Canvas container ready');
+    }
+  }
 
   displayFn(employee: { id: number; fullName: string }): string {
     return employee ? employee.fullName : '';
@@ -286,7 +290,7 @@ export class FloorMapComponent implements OnInit {
         }
         
         // Append the background SVG content to our background layer
-        backgroundGroup.node().appendChild(backgroundSvg);
+        (backgroundGroup.node() as Element).appendChild(backgroundSvg);
         
         if(floorNumber == 2){
           d3.select(backgroundSvg)
@@ -312,16 +316,16 @@ export class FloorMapComponent implements OnInit {
     
   }
 
-  private configureZoom(backgroundGroup: any): void {
+  private configureZoom(backgroundGroup: d3.Selection<SVGGElement, unknown, null, undefined>): void {
     this.zoom = d3.zoom()
       .scaleExtent([0.1, 4])
       .on('zoom', (event) => {
         backgroundGroup.attr('transform', event.transform);
         this.g.attr('transform', event.transform);
       });
-    this.svg.call(this.zoom);
+    this.svg.call(this.zoom as any);
     const initialTransform = d3.zoomIdentity.translate(-50, 0).scale(0.8);
-    this.svg.call(this.zoom.transform, initialTransform);
+    this.svg.call(this.zoom.transform as any, initialTransform);
   }
 
   private updateFloorContent(floorNumber: number): void {
@@ -360,7 +364,7 @@ export class FloorMapComponent implements OnInit {
           this.svg.attr('viewBox', viewBox);
         }
         
-        backgroundGroup.node().appendChild(backgroundSvg);
+        (backgroundGroup.node() as Element).appendChild(backgroundSvg);
         
         if(floorNumber == 2){
           d3.select(backgroundSvg)
@@ -383,7 +387,7 @@ export class FloorMapComponent implements OnInit {
     });
   }
 
-  private zoomOnEmployee(seat: any): void {
+  private zoomOnEmployee(seat: Seat): void {
     const container = this.canvasContainer.nativeElement;
     if (!container) {
       console.error('Canvas container not found');
@@ -399,11 +403,11 @@ export class FloorMapComponent implements OnInit {
     const y = rectNode.transform.baseVal.getItem(0).matrix.f;
     this.svg.transition()
       .duration(750)
-      .call(this.zoom.transform, d3.zoomIdentity.translate((x*-1.5 + 820) - rectNode.getBBox().width/2, y*-1.5 + 150).scale(1.5));
+      .call(this.zoom.transform as any, d3.zoomIdentity.translate((x*-1.5 + 820) - rectNode.getBBox().width/2, y*-1.5 + 150).scale(1.5));
     
   }
 
-  private async drawRooms(g: any): Promise<void> {
+  private async drawRooms(g: d3.Selection<SVGGElement, unknown, null, undefined>): Promise<void> {
     const rooms = this.selectedFloor()?.rooms || [];
     
     // First, draw all room containers immediately for visual feedback
@@ -425,12 +429,12 @@ export class FloorMapComponent implements OnInit {
     });
   }
 
-  private async drawRoomsWithTransition(g: any): Promise<void> {
+  private async drawRoomsWithTransition(g: d3.Selection<SVGGElement, unknown, null, undefined>): Promise<void> {
     const rooms = this.selectedFloor()?.rooms || [];
     
     // Use D3's enter/update/exit pattern
     const roomSelection = g.selectAll('.room-group')
-      .data(rooms, (d: any) => d.id);
+      .data(rooms, (d) => (d as Room).id);
     
     // Remove old rooms with exit transition
     roomSelection.exit()
@@ -443,14 +447,14 @@ export class FloorMapComponent implements OnInit {
     const enteringRooms = roomSelection.enter()
       .append('g')
       .attr('class', 'room-group')
-      .attr('id', (d: any) => 'room-group-' + d.id)
+      .attr('id', (d) => 'room-group-' + (d as Room).id)
       .style('opacity', 0);
     
     // Merge entering and updating selections
-    const allRooms = enteringRooms.merge(roomSelection);
+    const allRooms = enteringRooms.merge(roomSelection as any);
     
     // Draw room containers and seats using embedded employee data
-    allRooms.each((room: Room, i: number, nodes: Element[]) => {
+    allRooms.each((room: Room, i: number, nodes: ArrayLike<SVGGElement>) => {
       const roomGroup = d3.select(nodes[i]);
       
       // Clear existing content
@@ -460,12 +464,12 @@ export class FloorMapComponent implements OnInit {
         // Draw room container
         roomGroup.attr('transform', `translate(${room.x}, ${room.y})`);
         
-        const rect = roomGroup.append('rect')
+        roomGroup.append('rect')
           .attr('width', room.width)
           .attr('height', room.height)
           .attr('fill', 'rgba(255, 255, 255, 0.3)');
 
-        const text = roomGroup.append('text')
+        roomGroup.append('text')
           .attr('x', room.width/2)
           .attr('y', room.height/2)
           .attr('dy', '.35em')
@@ -488,7 +492,7 @@ export class FloorMapComponent implements OnInit {
           .attr('width', infoBox.attr('width'))
           .attr('height', 75);
 
-        const htmlContent = foreignObject.append('xhtml:div')
+        foreignObject.append('xhtml:div')
           .style('height', '100%')
           .style('padding', '0 10px 0 10px')
           .style('font-size', '14px')
@@ -505,12 +509,12 @@ export class FloorMapComponent implements OnInit {
         
         // Draw seats with embedded employee data
         const roomSeats = (room.seats || []).sort((a, b) => a.id - b.id);
-        roomSeats.forEach((seat: any) => {
+        roomSeats.forEach((seat) => {
           // Draw seat logic here - simplified for space
           const seatGroup = roomGroup.append('g')
             .attr('transform', `translate(${seat.x}, ${seat.y})`);
           
-          const seatRect = seatGroup.append('rect')
+          seatGroup.append('rect')
             .attr('width', seat.width)
             .attr('height', seat.height)
             .attr('fill', seat.employees && seat.employees.length > 0 ? 'rgb(255, 99, 132)' : 'rgb(123, 184, 148)')
@@ -529,14 +533,14 @@ export class FloorMapComponent implements OnInit {
       .style('opacity', 1);
   }
 
-  private drawRoomContainer(roomGroup: any, room: Room): void {
+  private drawRoomContainer(roomGroup: d3.Selection<SVGGElement, unknown, null, undefined>, room: Room): void {
     roomGroup.attr('transform', `translate(${room.x}, ${room.y})`);
     const rect = roomGroup.append('rect')
       .attr('width', room.width)
       .attr('height', room.height)
       .attr('fill', 'rgba(255, 255, 255, 0.3)');
 
-    const text = roomGroup.append('text')
+    roomGroup.append('text')
       .attr('x', room.width/2)
       .attr('y', room.height/2)
       .attr('dy', '.35em')
@@ -546,20 +550,20 @@ export class FloorMapComponent implements OnInit {
     this.createInfoBox(roomGroup, rect, room);
   }
 
-  private drawRoomSeats(roomGroup: any, seats: any[]): void {
+  private drawRoomSeats(roomGroup: d3.Selection<SVGGElement, unknown, null, undefined>, seats: Seat[]): void {
     seats.forEach((seat) => {
       this.drawSeat(roomGroup, seat);
     });
   }
 
-  private async drawRoom(roomGroup: any, room: Room){
+  private async drawRoom(roomGroup: d3.Selection<SVGGElement, unknown, null, undefined>, room: Room){
     roomGroup.attr('transform', `translate(${room.x}, ${room.y})`);
     const rect = roomGroup.append('rect')
       .attr('width', room.width)
       .attr('height', room.height)
       .attr('fill', 'rgba(255, 255, 255, 0.3)');
 
-    const text = roomGroup.append('text')
+    roomGroup.append('text')
     .attr('x', room.width/2)
     .attr('y', room.height/2)
     .attr('dy', '.35em')
@@ -576,7 +580,7 @@ export class FloorMapComponent implements OnInit {
     })
   }
 
-  private drawSeat(roomGroup: any, seat: Seat){
+  private drawSeat(roomGroup: d3.Selection<SVGGElement, unknown, null, undefined>, seat: Seat){
     const group = roomGroup.append('g')
     .attr('class', 'room-group');
 
@@ -614,7 +618,7 @@ export class FloorMapComponent implements OnInit {
             font-size: 10px;
             writing-mode: sideways-lr;
           ">
-            ${seat.employees.map((e: any) => e.fullName).join('<br/>')}
+            ${seat.employees.map((e) => e.fullName).join('<br/>')}
           </div>
         </div>
       `;
@@ -652,12 +656,12 @@ export class FloorMapComponent implements OnInit {
 
 
 
-  private createInfoBox(roomGroup: any, rect: any, room: any): void {
+  private createInfoBox(roomGroup: d3.Selection<SVGGElement, unknown, null, undefined>, rect: d3.Selection<SVGRectElement, unknown, null, undefined>, room: Room): void {
 
     const infoBox = roomGroup.append('rect')
       .attr('x', 10)
-      .attr('y', room.y > 200 ? rect.attr('height') : -75)
-      .attr('width', rect.attr('width') - 20)
+      .attr('y', room.y > 200 ? parseFloat(rect.attr('height')) : -75)
+      .attr('width', parseFloat(rect.attr('width')) - 20)
       .attr('height', 75)
       .attr('fill', 'rgb(254, 243, 205)')
       .attr('stroke', 'black')
@@ -669,7 +673,7 @@ export class FloorMapComponent implements OnInit {
       .attr('width', infoBox.attr('width'))
       .attr('height', 75)
 
-    const htmlContent = foreignObject.append('xhtml:div')
+    foreignObject.append('xhtml:div')
       .style('height', '100%')
       .style('padding', '0 10px 0 10px')
       .style('font-size', '14px')

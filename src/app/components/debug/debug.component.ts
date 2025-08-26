@@ -9,6 +9,29 @@ import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
 import { MatChipsModule } from '@angular/material/chips';
 import { AuthService } from '../../auth/auth.service';
 import { environment } from '../../../environments/environment';
+import { B2CTokenClaims } from '../../auth/b2c-token.interface';
+import { AccountInfo } from '@azure/msal-browser';
+
+interface MsalConfig {
+  auth: {
+    authority?: string;
+    clientId?: string;
+    redirectUri?: string;
+  };
+}
+
+interface MsalServiceInstance {
+  getConfiguration: () => MsalConfig;
+  getAllAccounts: () => AccountInfo[];
+  setActiveAccount: (account: AccountInfo) => void;
+}
+
+interface AuthServiceWithMsal {
+  msalService: {
+    instance: MsalServiceInstance;
+  };
+  loadUserProfile: () => Promise<void>;
+}
 
 @Component({
   selector: 'app-debug',
@@ -29,9 +52,9 @@ import { environment } from '../../../environments/environment';
 export class DebugComponent implements OnInit {
   idToken: string | null = null;
   accessToken: string | null = null;
-  decodedIdToken: any = null;
-  decodedAccessToken: any = null;
-  userInfo: any = null;
+  decodedIdToken: B2CTokenClaims | null = null;
+  decodedAccessToken: B2CTokenClaims | null = null;
+  userInfo: AccountInfo | null = null;
   isLoading = false;
   environment = environment;
 
@@ -99,7 +122,7 @@ export class DebugComponent implements OnInit {
     console.log('🔍 === B2C CONFIGURATION CHECK ===');
     
     // Get current MSAL config
-    const config = (this.authService as any).msalService.instance.getConfiguration();
+    const config = (this.authService as unknown as AuthServiceWithMsal).msalService.instance.getConfiguration();
     console.log('🔍 Current MSAL Configuration:', config);
     
     // Check B2C specific settings
@@ -111,18 +134,19 @@ export class DebugComponent implements OnInit {
     });
     
     // Check if we have accounts and what claims they have
-    const accounts = (this.authService as any).msalService.instance.getAllAccounts();
+    const accounts = (this.authService as unknown as AuthServiceWithMsal).msalService.instance.getAllAccounts();
     if (accounts.length > 0) {
       const account = accounts[0];
       console.log('🔍 Account Authority Type:', account.authorityType);
       console.log('🔍 Account Environment:', account.environment);
       
       if (account.idTokenClaims) {
-        console.log('🔍 Available Claims in ID Token:', Object.keys(account.idTokenClaims));
-        console.log('🔍 Token Issuer (iss):', account.idTokenClaims['iss']);
-        console.log('🔍 Token Audience (aud):', account.idTokenClaims['aud']);
-        console.log('🔍 Available Scopes (scp):', account.idTokenClaims['scp']);
-        console.log('🔍 App ID (appid):', account.idTokenClaims['appid']);
+        const claims = account.idTokenClaims as Record<string, unknown>;
+        console.log('🔍 Available Claims in ID Token:', Object.keys(claims));
+        console.log('🔍 Token Issuer (iss):', claims['iss']);
+        console.log('🔍 Token Audience (aud):', claims['aud']);
+        console.log('🔍 Available Scopes (scp):', claims['scp']);
+        console.log('🔍 App ID (appid):', claims['appid']);
       }
     }
     
@@ -155,15 +179,16 @@ export class DebugComponent implements OnInit {
     console.log('🔍 Expected scope:', expectedScope);
     
     // Check if we have an account with ID token claims
-    const accounts = (this.authService as any).msalService.instance.getAllAccounts();
+    const accounts = (this.authService as unknown as AuthServiceWithMsal).msalService.instance.getAllAccounts();
     if (accounts.length > 0) {
       const account = accounts[0];
       if (account.idTokenClaims) {
+        const claims = account.idTokenClaims as Record<string, unknown>;
         console.log('🔍 === ID TOKEN ANALYSIS ===');
-        console.log('🔍 Token Audience (aud):', account.idTokenClaims['aud']);
-        console.log('🔍 Token Issuer (iss):', account.idTokenClaims['iss']);
-        console.log('🔍 Available Scopes (scp):', account.idTokenClaims['scp']);
-        console.log('🔍 App ID in token (appid):', account.idTokenClaims['appid']);
+        console.log('🔍 Token Audience (aud):', claims['aud']);
+        console.log('🔍 Token Issuer (iss):', claims['iss']);
+        console.log('🔍 Available Scopes (scp):', claims['scp']);
+        console.log('🔍 App ID in token (appid):', claims['appid']);
         
         // Check if our expected scope appears anywhere in the token
         const tokenString = JSON.stringify(account.idTokenClaims);
@@ -183,7 +208,7 @@ export class DebugComponent implements OnInit {
       console.log('🔍 Testing profile endpoint...');
       
       // Force reload user profile to test the endpoint
-      await (this.authService as any).loadUserProfile();
+      await (this.authService as unknown as AuthServiceWithMsal).loadUserProfile();
       const profile = this.authService.getCurrentUserProfile();
       
       if (profile) {
@@ -247,11 +272,11 @@ export class DebugComponent implements OnInit {
     });
   }
 
-  formatJson(obj: any): string {
+  formatJson(obj: unknown): string {
     return JSON.stringify(obj, null, 2);
   }
 
-  getTokenExpiration(token: any): string {
+  getTokenExpiration(token: B2CTokenClaims | null): string {
     if (!token || !token.exp) return 'N/A';
     const expDate = new Date(token.exp * 1000);
     const now = new Date();
@@ -260,17 +285,17 @@ export class DebugComponent implements OnInit {
     return expDate.toLocaleString() + status;
   }
 
-  getTokenScopes(token: any): string[] {
+  getTokenScopes(token: B2CTokenClaims | null): string[] {
     if (!token) return [];
     return token.scp ? token.scp.split(' ') : (token.scope ? token.scope.split(' ') : []);
   }
 
-  getIssuedAt(token: any): string {
+  getIssuedAt(token: B2CTokenClaims | null): string {
     if (!token || !token.iat) return 'N/A';
     return new Date(token.iat * 1000).toLocaleString();
   }
 
-  private decodeJWT(token: string): any {
+  private decodeJWT(token: string): B2CTokenClaims | null {
     try {
       const base64Url = token.split('.')[1];
       const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');

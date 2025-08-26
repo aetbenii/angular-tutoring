@@ -105,12 +105,12 @@ export class D3MapService {
   /**
    * Draw rooms with D3 enter/update/exit pattern
    */
-  drawRooms(rooms: Room[], enrichedSeats: Map<number, any>): void {
+  drawRooms(rooms: Room[], enrichedSeats: Map<number, Seat>): void {
     if (!this.interactiveGroup) return;
 
     // Use D3's enter/update/exit pattern
     const roomSelection = this.interactiveGroup.selectAll('.room-group')
-      .data(rooms, (d: any) => d.id);
+      .data(rooms, (d) => (d as Room).id);
 
     // Remove old rooms with exit transition
     roomSelection.exit()
@@ -123,14 +123,14 @@ export class D3MapService {
     const enteringRooms = roomSelection.enter()
       .append('g')
       .attr('class', 'room-group')
-      .attr('id', (d: any) => 'room-group-' + d.id)
+      .attr('id', (d) => 'room-group-' + d.id)
       .style('opacity', 0);
 
     // Merge entering and updating selections
     const allRooms = enteringRooms.merge(roomSelection);
 
     // Draw room containers and seats
-    allRooms.each((room: Room, i: number, nodes: any) => {
+    allRooms.each((room: Room, i: number, nodes: ArrayLike<Element>) => {
       const roomGroup = d3.select(nodes[i]);
       
       // Clear existing content
@@ -152,15 +152,15 @@ export class D3MapService {
   /**
    * Draw individual room container
    */
-  private drawRoomContainer(roomGroup: any, room: Room): void {
+  private drawRoomContainer(roomGroup: d3.Selection<SVGGElement, Room, null, undefined>, room: Room): void {
     roomGroup.attr('transform', `translate(${room.x}, ${room.y})`);
     
-    const rect = roomGroup.append('rect')
+    roomGroup.append('rect')
       .attr('width', room.width)
       .attr('height', room.height)
       .attr('fill', 'rgba(255, 255, 255, 0.3)');
 
-    const text = roomGroup.append('text')
+    roomGroup.append('text')
       .attr('x', room.width / 2)
       .attr('y', room.height / 2)
       .attr('dy', '.35em')
@@ -173,7 +173,7 @@ export class D3MapService {
   /**
    * Create room info box
    */
-  private createRoomInfoBox(roomGroup: any, room: Room): void {
+  private createRoomInfoBox(roomGroup: d3.Selection<SVGGElement, Room, null, undefined>, room: Room): void {
     const infoBox = roomGroup.append('rect')
       .attr('x', 10)
       .attr('y', room.y > 200 ? room.height : -75)
@@ -207,7 +207,7 @@ export class D3MapService {
   /**
    * Draw seats for a room
    */
-  private drawRoomSeats(roomGroup: any, seats: Seat[], enrichedSeats: Map<number, any>): void {
+  private drawRoomSeats(roomGroup: d3.Selection<SVGGElement, Room, null, undefined>, seats: Seat[], enrichedSeats: Map<number, Seat>): void {
     seats.forEach((seat) => {
       const enrichedSeat = enrichedSeats.get(seat.id) || seat;
       this.drawSeat(roomGroup, enrichedSeat);
@@ -217,11 +217,11 @@ export class D3MapService {
   /**
    * Draw individual seat
    */
-  private drawSeat(roomGroup: any, seat: any): void {
+  private drawSeat(roomGroup: d3.Selection<SVGGElement, Room, null, undefined>, seat: Seat): void {
     const seatGroup = roomGroup.append('g')
       .attr('transform', `translate(${seat.x}, ${seat.y})`);
 
-    const rect = seatGroup.append('rect')
+    seatGroup.append('rect')
       .attr('width', seat.width)
       .attr('height', seat.height)
       .attr('fill', seat.employees && seat.employees.length > 0 ? 'rgb(255, 99, 132)' : 'rgb(123, 184, 148)')
@@ -247,7 +247,7 @@ export class D3MapService {
   /**
    * Generate HTML content for seat
    */
-  private generateSeatContent(seat: any): string {
+  private generateSeatContent(seat: Seat): string {
     if (!seat.employees || seat.employees.length === 0) {
       return `
         <div style="
@@ -287,7 +287,7 @@ export class D3MapService {
   /**
    * Zoom to specific location
    */
-  zoomTo(x: number, y: number, scale: number = 1.5, duration: number = 750): void {
+  zoomTo(x: number, y: number, scale = 1.5, duration = 750): void {
     if (!this.svg || !this.zoom) return;
 
     this.svg.transition()
@@ -344,7 +344,7 @@ export class D3MapService {
   /**
    * Get current SVG element (for external access if needed)
    */
-  getSvg(): any {
+  getSvg(): d3.Selection<SVGSVGElement, unknown, null, undefined> | null {
     return this.svg;
   }
 }

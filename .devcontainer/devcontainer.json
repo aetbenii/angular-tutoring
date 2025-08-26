@@ -1,16 +1,41 @@
 {
-  "name": "Devbox Remote Container",
+  "name": "HR Seats Angular with Apache Proxy",
   "build": {
     "dockerfile": "./Dockerfile",
     "context": ".."
   },
+  "forwardPorts": [80, 4200, 8443],
   "customizations": {
     "vscode": {
-      "settings": {},
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "zsh",
+        "terminal.integrated.profiles.linux": {
+          "zsh": {
+            "path": "/usr/bin/zsh"
+          },
+          "bash": {
+            "path": "/bin/bash",
+            "args": ["--rcfile", "/workspaces/09_HR_Seats_Angular/.devcontainer/.bashrc"]
+          }
+        }
+      },
       "extensions": [
-        "jetpack-io.devbox"
+        "jetpack-io.devbox",
+        "angular.ng-template",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-azuretools.vscode-docker"
       ]
     }
   },
-  "remoteUser": "devbox"
+  "postStartCommand": "sudo bash -c 'if [ ! -f /etc/ssl/private/desk.services.siag.it.key ]; then mkdir -p /etc/ssl/certs /etc/ssl/private && openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/ssl/private/desk.services.siag.it.key -out /etc/ssl/certs/desk.services.siag.it.crt -subj \"/C=IT/ST=Italy/L=Milan/O=SIAG/CN=desk.services.siag.it\" && chmod 600 /etc/ssl/private/desk.services.siag.it.key && chmod 644 /etc/ssl/certs/desk.services.siag.it.crt; fi && service apache2 start'",
+  "remoteUser": "devbox",
+  "mounts": [
+    "source=${localWorkspaceFolder},target=/code,type=bind,consistency=cached",
+    "source=${localWorkspaceFolder}/dist,target=/var/www/hr-seats-angular,type=bind,consistency=cached"
+  ],
+  "runArgs": [
+    "--add-host=local-desk.services.siag.it:127.0.0.1",
+    "--privileged"
+  ]
 }

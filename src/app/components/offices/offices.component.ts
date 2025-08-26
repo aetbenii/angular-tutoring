@@ -15,7 +15,6 @@ import { EmployeeService } from '../../services/employee.service';
 import { SeatInfoDialogComponent } from './seat-info-dialog/seat-info-dialog.component';
 import { catchError, map, switchMap } from 'rxjs/operators';
 import { EMPTY, forkJoin, of } from 'rxjs';
-import { Seat } from '../../interfaces/seat.interface';
 import { Employee } from '../../interfaces/employee.interface';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
@@ -45,7 +44,7 @@ export class OfficesComponent implements OnInit, OnDestroy {
   reservingForEmployee: { id: number; name: string } | null = null;
   employees: Employee[] = [];
   private destroyRef = inject(DestroyRef);
-  private intervalId: any;
+  private intervalId: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private floorService: FloorService,
@@ -111,7 +110,7 @@ export class OfficesComponent implements OnInit, OnDestroy {
     this.intervalId = setInterval(() => {
       if (this.floors().length > 0 && this.selectedFloorControl.value === null) {
         checkFloorsAndSetInitial();
-        clearInterval(this.intervalId);
+        clearInterval(this.intervalId!);
         this.intervalId = null;
       }
     }, 250);
@@ -119,7 +118,7 @@ export class OfficesComponent implements OnInit, OnDestroy {
     // Clean up the interval after 10 seconds to avoid memory leaks
     setTimeout(() => {
       if (this.intervalId) {
-        clearInterval(this.intervalId);
+        clearInterval(this.intervalId!);
         this.intervalId = null;
       }
     }, 10000);
@@ -128,7 +127,7 @@ export class OfficesComponent implements OnInit, OnDestroy {
   ngOnDestroy() {
     // Clean up interval if still running
     if (this.intervalId) {
-      clearInterval(this.intervalId);
+      clearInterval(this.intervalId!);
       this.intervalId = null;
     }
   }

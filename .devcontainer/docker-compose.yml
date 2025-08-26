@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  dev-container:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    container_name: hr-seats-angular-dev
+    ports:
+      - "80:80"       # HTTP (redirects to HTTPS)
+      - "4200:4200"   # Direct Angular dev server access
+      - "8443:8443"   # HTTPS with SSL (Apache reverse proxy + API proxy)
+    volumes:
+      - ..:/code:cached
+      - ../dist:/var/www/hr-seats-angular:cached
+      - apache-logs:/var/log/apache2
+    environment:
+      - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true  # For file watching in Docker
+    extra_hosts:
+      - "local-desk.services.siag.it:127.0.0.1"
+    networks:
+      - hr-seats-network
+    privileged: true
+    stdin_open: true
+    tty: true
+
+volumes:
+  apache-logs:
+    driver: local
+
+networks:
+  hr-seats-network:
+    driver: bridge

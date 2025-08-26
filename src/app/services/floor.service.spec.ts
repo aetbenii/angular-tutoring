@@ -1,7 +1,6 @@
 import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { FloorService } from './floor.service';
-import { HttpErrorResponse } from '@angular/common/http';
 import { Floor } from '../interfaces/floor.interface';
 
 describe('FloorService', () => {
@@ -29,7 +28,7 @@ describe('FloorService', () => {
     if (httpMock) {
       try {
         httpMock.verify();
-      } catch (e) {
+      } catch {
         // Ignore if already destroyed
       }
     }

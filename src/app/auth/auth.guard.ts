@@ -13,6 +13,8 @@ export const authGuard: CanActivateFn = async (route) => {
 
     // Check if user is authenticated
     if (!authService.isLoggedIn()) {
+      // For redirect flow, don't automatically trigger login
+      // Instead, redirect to login page where user can manually trigger login
       if (isDevelopment) console.log('🔐 User not authenticated, redirecting to login page');
       return router.parseUrl('/login');
     }
@@ -20,7 +22,7 @@ export const authGuard: CanActivateFn = async (route) => {
     // Check for required roles from route data
     const requiredRoles = route.data?.['roles'] as string[] | undefined;
     if (requiredRoles && requiredRoles.length > 0) {
-      const userProfile = authService.getCurrentUserProfile();
+      const userProfile = authService.getUserProfile();
       
       if (!userProfile) {
         if (isDevelopment) console.log('🔐 User profile not available, redirecting to login');
@@ -29,7 +31,7 @@ export const authGuard: CanActivateFn = async (route) => {
       
       // Check if user has any of the required roles
       const hasAnyRequiredRole = requiredRoles.some(role => 
-        userProfile.roles?.some(userRole => userRole.name === role) || false
+        userProfile.roles?.includes(role) || false
       );
       
       if (!hasAnyRequiredRole) {
@@ -40,28 +42,9 @@ export const authGuard: CanActivateFn = async (route) => {
       }
     }
 
-    // Check for required permissions from route data
-    const requiredPermissions = route.data?.['permissions'] as string[] | undefined;
-    if (requiredPermissions && requiredPermissions.length > 0) {
-      // Allow admins to bypass specific permission checks
-      const isAdmin = authService.isAdmin();
-      const hasRequiredPermission = requiredPermissions.some(permission => 
-        authService.hasPermission(permission)
-      );
-      
-      if (!hasRequiredPermission && !isAdmin) {
-        if (isDevelopment) console.log('🔐 User does not have required permissions and is not admin:', requiredPermissions);
-        return router.parseUrl('/unauthorized');
-      }
-      
-      if (isDevelopment && isAdmin) {
-        console.log('🔐 Admin access granted for permissions:', requiredPermissions);
-      }
-    }
-
     return true;
   } catch (error) {
-    console.error('🔐 Auth guard error:', error);
+    console.error('Auth guard error:', error);
     return router.parseUrl('/login');
   }
-};
+}; 
