@@ -165,7 +165,7 @@ describe('EmployeesComponent', () => {
         scrollTop: 850,
         clientHeight: 100
       }
-    } as Event;
+    } as unknown as Event;
     
     component.onScroll(mockEvent);
 

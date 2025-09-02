@@ -43,7 +43,7 @@ export class EditMapComponent implements OnInit, AfterViewInit{
     private seatGroup!: d3.Selection<SVGGElement, unknown, null, undefined>;
     private text!: d3.Selection<SVGTextElement, unknown, null, undefined>;
     private seatsGeometry = new Set<d3.Selection<SVGRectElement, unknown, null, undefined>>();
-    private zoom!: d3.ZoomBehavior<Element, unknown>;
+    private zoom!: d3.ZoomBehavior<SVGSVGElement, unknown>;
     private seats: Seat[] = [];
     private infoBox!: d3.Selection<SVGRectElement, unknown, null, undefined>;
     private foreignObject!: d3.Selection<SVGForeignObjectElement, unknown, null, undefined>;
@@ -365,7 +365,7 @@ handle.call(d3.drag<SVGCircleElement, unknown>()
     
     private configureZoom(backgroundGroup: d3.Selection<SVGGElement, unknown, null, undefined>): void {
       // Configure D3 zoom behavior for pan and zoom functionality
-      this.zoom = d3.zoom()
+      this.zoom = d3.zoom<SVGSVGElement, unknown>()
         .scaleExtent([0.1, 4]) // Limit zoom scale between 0.1x and 4x
         .on('zoom', (event) => {
           // Apply the same transform to both layers to keep them in sync
@@ -374,11 +374,11 @@ handle.call(d3.drag<SVGCircleElement, unknown>()
         });
   
       // Apply zoom behavior to the SVG
-      this.svg.call(this.zoom as any);
+      this.svg.call(this.zoom);
       
       // Set initial zoom transform for better initial view
       const initialTransform = d3.zoomIdentity.translate(100, 100).scale(0.8);
-      this.svg.call(this.zoom.transform as any, initialTransform);
+      this.svg.call(this.zoom.transform, initialTransform);
     }
 
     private createSmallRect(seat: Seat, room: Room, seatItemGroup: d3.Selection<SVGGElement, unknown, null, undefined>, seats: Set<d3.Selection<SVGRectElement, unknown, null, undefined>>): void {

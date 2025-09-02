@@ -1,0 +1,55 @@
+{
+  "name": "office-management-system",
+  "version": "1.0.0",
+  "profile": "unknown",
+  "timestamp": "2025-09-02T11:22:01.540675492Z",
+  "build": {
+    "number": "20250822.2",
+    "javaVersion": "21",
+    "time": "2025-08-22T14:18:52Z"
+  },
+  "git": {
+    "dirty": false,
+    "commitMessage": "jenkins conf cambiata",
+    "commitTime": "2025-08-22T14:09:55+0000",
+    "commitIdFull": "42f4879b78481ab6ea79cd15d1bdf08964c9c6c3",
+    "commitId": "42f4879",
+    "branch": "v1.0.0",
+    "tags": "v1.0.0"
+  },
+  "runtime": {
+    "uptimeMillis": 939647225,
+    "javaVersion": "21.0.7",
+    "jvmVersion": "21.0.7+6-LTS",
+    "jvmName": "OpenJDK 64-Bit Server VM",
+    "startTime": "2025-08-22T14:21:14.317494214Z",
+    "javaVendor": "Red Hat, Inc.",
+    "uptime": "10d 21h 0m 47s"
+  },
+  "memory": {
+    "heap": {
+      "committed": "2.0 GB",
+      "max": "2.0 GB",
+      "usagePercent": 27,
+      "used": "557.1 MB"
+    },
+    "nonHeap": {
+      "committed": "230.0 MB",
+      "max": "unlimited",
+      "used": "209.6 MB"
+    }
+  },
+  "health": {
+    "roleManager": {
+      "mockMode": false,
+      "baseUrl": "https://app-rolemanager-api-siag-test.azurewebsites.net",
+      "status": "DOWN"
+    },
+    "database": {
+      "type": "Unknown",
+      "employeeCount": 10,
+      "status": "UP"
+    },
+    "status": "UP"
+  }
+}

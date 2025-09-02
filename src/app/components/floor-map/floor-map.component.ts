@@ -49,7 +49,7 @@ export class FloorMapComponent implements OnInit, AfterViewInit {
   private floorService = inject(FloorService);
   private svg!: d3.Selection<SVGSVGElement, unknown, null, undefined>;
   private g!: d3.Selection<SVGGElement, unknown, null, undefined>;
-  private zoom!: d3.ZoomBehavior<Element, unknown>;
+  private zoom!: d3.ZoomBehavior<SVGSVGElement, unknown>;
   private apiUrl = environment.apiBaseUrl;
 
   loading = signal<boolean>(false);
@@ -317,15 +317,15 @@ export class FloorMapComponent implements OnInit, AfterViewInit {
   }
 
   private configureZoom(backgroundGroup: d3.Selection<SVGGElement, unknown, null, undefined>): void {
-    this.zoom = d3.zoom()
+    this.zoom = d3.zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.1, 4])
       .on('zoom', (event) => {
         backgroundGroup.attr('transform', event.transform);
         this.g.attr('transform', event.transform);
       });
-    this.svg.call(this.zoom as any);
+    this.svg.call(this.zoom);
     const initialTransform = d3.zoomIdentity.translate(-50, 0).scale(0.8);
-    this.svg.call(this.zoom.transform as any, initialTransform);
+    this.svg.call(this.zoom.transform, initialTransform);
   }
 
   private updateFloorContent(floorNumber: number): void {
@@ -403,7 +403,7 @@ export class FloorMapComponent implements OnInit, AfterViewInit {
     const y = rectNode.transform.baseVal.getItem(0).matrix.f;
     this.svg.transition()
       .duration(750)
-      .call(this.zoom.transform as any, d3.zoomIdentity.translate((x*-1.5 + 820) - rectNode.getBBox().width/2, y*-1.5 + 150).scale(1.5));
+      .call(this.zoom.transform, d3.zoomIdentity.translate((x*-1.5 + 820) - rectNode.getBBox().width/2, y*-1.5 + 150).scale(1.5));
     
   }
 
@@ -433,8 +433,8 @@ export class FloorMapComponent implements OnInit, AfterViewInit {
     const rooms = this.selectedFloor()?.rooms || [];
     
     // Use D3's enter/update/exit pattern
-    const roomSelection = g.selectAll('.room-group')
-      .data(rooms, (d) => (d as Room).id);
+    const roomSelection = g.selectAll<SVGGElement, Room>('.room-group')
+      .data(rooms, (d) => d.id);
     
     // Remove old rooms with exit transition
     roomSelection.exit()
@@ -447,11 +447,11 @@ export class FloorMapComponent implements OnInit, AfterViewInit {
     const enteringRooms = roomSelection.enter()
       .append('g')
       .attr('class', 'room-group')
-      .attr('id', (d) => 'room-group-' + (d as Room).id)
+      .attr('id', (d) => 'room-group-' + d.id)
       .style('opacity', 0);
     
     // Merge entering and updating selections
-    const allRooms = enteringRooms.merge(roomSelection as any);
+    const allRooms = enteringRooms.merge(roomSelection);
     
     // Draw room containers and seats using embedded employee data
     allRooms.each((room: Room, i: number, nodes: ArrayLike<SVGGElement>) => {

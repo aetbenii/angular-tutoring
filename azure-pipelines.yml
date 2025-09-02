@@ -1,0 +1,477 @@
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+  tags:
+    include:
+      - v*
+  paths:
+    exclude:
+      - README.md
+      - docs/*
+      - '*.md'
+
+pr:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    exclude:
+      - README.md
+      - docs/*
+      - '*.md'
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  NODE_VERSION: '18.x'
+  NPM_CACHE_FOLDER: $(Pipeline.Workspace)/.npm
+  # Indicate if this is a PR build
+  isPR: $[eq(variables['Build.Reason'], 'PullRequest')]
+  # Indicate if this is a tag build
+  isTag: $[startsWith(variables['Build.SourceBranch'], 'refs/tags/v')]
+  # Extract version from tag (e.g., refs/tags/v1.0.0 -> v1.0.0)
+  tagVersion: $[replace(variables['Build.SourceBranch'], 'refs/tags/', '')]
+  # Clean version for Azure Artifacts (remove 'v' prefix for SemVer compliance)
+  cleanVersion: $[replace(variables['tagVersion'], 'v', '')]
+  
+stages:
+  - stage: ValidateAndTest
+    displayName: 'Code Validation and Testing'
+    jobs:
+      # Job 1: Build and Unit Tests
+      - job: BuildAndUnitTests
+        displayName: 'Build and Unit Tests'
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - task: NodeTool@0
+            inputs:
+              versionSpec: '$(NODE_VERSION)'
+            displayName: 'Install Node.js'
+
+          - task: Cache@2
+            inputs:
+              key: 'npm | "$(Agent.OS)" | package-lock.json'
+              restoreKeys: |
+                npm | "$(Agent.OS)"
+              path: $(NPM_CACHE_FOLDER)
+            displayName: 'Cache npm dependencies'
+
+          - script: npm config set cache $(NPM_CACHE_FOLDER) --global
+            displayName: 'Configure npm cache'
+
+          - script: |
+              echo "🔍 Build Information:"
+              echo "Build Reason: $(Build.Reason)"
+              echo "Source Branch: $(Build.SourceBranchName)"
+              if [ "$(Build.Reason)" = "PullRequest" ]; then
+                echo "Target Branch: $(System.PullRequest.TargetBranch)"
+                echo "PR Number: #$(System.PullRequest.PullRequestNumber)"
+                echo "PR Title: $(System.PullRequest.PullRequestTitle)"
+              else
+                echo "Direct push to $(Build.SourceBranchName) branch"
+              fi
+              echo "Is PR Build: $(isPR)"
+              echo ""
+              echo "🔧 Node/NPM Configuration:"
+              echo "Node version: $(node --version)"
+              echo "NPM version: $(npm --version)"
+              echo "NPM cache folder: $(NPM_CACHE_FOLDER)"
+            displayName: 'Build Information'
+
+          - script: npm ci
+            displayName: '📦 Install dependencies'
+
+          - script: npm run lint
+            displayName: '🎨 Lint code'
+            continueOnError: false
+
+          - script: npm run test:ci
+            displayName: '🧪 Run unit tests'
+            continueOnError: false
+
+          - task: PublishTestResults@2
+            displayName: '📋 Publish Unit Test Results'
+            inputs:
+              testResultsFormat: 'JUnit'
+              testResultsFiles: 'test-results/junit.xml'
+              testRunTitle: 'Unit Tests'
+              failTaskOnFailedTests: true
+              mergeTestResults: true
+            condition: always()
+
+          - task: PublishCodeCoverageResults@2
+            displayName: '📊 Publish Code Coverage'
+            inputs:
+              summaryFileLocation: 'coverage/seat-management/cobertura-coverage.xml'
+            condition: always()
+
+          # Build both development and production bundles for validation
+          - script: npm run build:dev
+            displayName: '🔨 Build development bundle'
+
+          - script: npm run build:prod
+            displayName: '🔨 Build production bundle'
+
+          # Publish built artifacts for later stages
+          - publish: $(System.DefaultWorkingDirectory)/dist
+            artifact: angular-dist
+            displayName: '📦 Publish build artifacts'
+            condition: succeeded()
+
+      # Job 2: E2E Tests (optional, can be enabled later)
+      - job: E2ETests
+        displayName: 'E2E Tests'
+        dependsOn: BuildAndUnitTests
+        condition: and(succeeded(), eq(variables['runE2E'], 'true'))
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - task: NodeTool@0
+            inputs:
+              versionSpec: '$(NODE_VERSION)'
+            displayName: 'Install Node.js'
+
+          - task: Cache@2
+            inputs:
+              key: 'npm | "$(Agent.OS)" | package-lock.json'
+              restoreKeys: |
+                npm | "$(Agent.OS)"
+              path: $(NPM_CACHE_FOLDER)
+            displayName: 'Cache npm dependencies'
+
+          - script: npm config set cache $(NPM_CACHE_FOLDER) --global
+            displayName: 'Configure npm cache'
+
+          - script: npm ci
+            displayName: '📦 Install dependencies'
+
+          # Download the built artifacts
+          - download: current
+            artifact: angular-dist
+            displayName: '📥 Download build artifacts'
+
+          - script: npm run e2e:ci
+            displayName: '🧪 Run E2E tests'
+            continueOnError: false
+
+          - task: PublishTestResults@2
+            displayName: '📋 Publish E2E Test Results'
+            inputs:
+              testResultsFormat: 'JUnit'
+              testResultsFiles: '**/e2e-results/results.xml'
+              testRunTitle: 'E2E Tests'
+              failTaskOnFailedTests: true
+            condition: always()
+
+  # Only run on successful validation for PRs
+  - stage: ValidateReadyForMerge
+    displayName: 'PR Validation Complete'
+    dependsOn: ValidateAndTest
+    condition: and(succeeded(), eq(variables.isPR, true))
+    jobs:
+      - job: PRValidationSummary
+        displayName: 'PR Validation Summary'
+        steps:
+          - script: |
+              echo "🎉 All validation checks passed!"
+              echo ""
+              echo "📋 Validation Summary:"
+              echo "   ✅ Code linting"
+              echo "   ✅ Unit tests"  
+              echo "   ✅ Development build"
+              echo "   ✅ Production build"
+              echo ""
+              echo "🚀 Ready to merge!"
+            displayName: '🎉 PR Validation Success'
+
+  # Build stage for main/develop branches - creates dev and production artifacts
+  - stage: BuildArtifacts
+    displayName: 'Build Development and Production Artifacts'
+    dependsOn: ValidateAndTest
+    condition: and(succeeded(), or(eq(variables['Build.SourceBranch'], 'refs/heads/main'), eq(variables['Build.SourceBranch'], 'refs/heads/develop')), eq(variables.isPR, false))
+    jobs:
+      - job: BuildDistributions
+        displayName: 'Build Dev and Prod Distributions'
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - task: NodeTool@0
+            inputs:
+              versionSpec: '$(NODE_VERSION)'
+            displayName: 'Install Node.js'
+
+          - task: Cache@2
+            inputs:
+              key: 'npm | "$(Agent.OS)" | package-lock.json'
+              restoreKeys: |
+                npm | "$(Agent.OS)"
+              path: $(NPM_CACHE_FOLDER)
+            displayName: 'Cache npm dependencies'
+
+          - script: npm config set cache $(NPM_CACHE_FOLDER) --global
+            displayName: 'Configure npm cache'
+
+          - script: npm ci
+            displayName: '📦 Install dependencies'
+
+          # Build development distribution
+          - script: |
+              echo "🔨 Building development distribution..."
+              npm run build:dev
+              
+              echo "📁 Checking dist directory contents:"
+              ls -la dist/ || echo "No dist directory found"
+              
+              # Archive the development build
+              cd dist/seat-management/browser
+              tar czf ../../../hr-seats-angular-dev.tar.gz *
+              cd ../../..
+              echo "✅ Created hr-seats-angular-dev.tar.gz"
+            displayName: '🔨 Build Development Distribution'
+
+          # Build production distribution
+          - script: |
+              echo "🔨 Building production distribution..."
+              npm run build:prod
+              
+              # Archive the production build
+              cd dist/seat-management/browser
+              tar czf ../../../hr-seats-angular-prod.tar.gz *
+              cd ../../..
+              echo "✅ Created hr-seats-angular-prod.tar.gz"
+            displayName: '🔨 Build Production Distribution'
+
+          # Publish both distributions as artifacts
+          - task: PublishPipelineArtifact@1
+            displayName: '📦 Publish Dev Distribution'
+            inputs:
+              targetPath: '$(System.DefaultWorkingDirectory)/hr-seats-angular-dev.tar.gz'
+              artifactName: 'dev-distribution'
+              publishLocation: 'pipeline'
+
+          - task: PublishPipelineArtifact@1
+            displayName: '📦 Publish Prod Distribution'
+            inputs:
+              targetPath: '$(System.DefaultWorkingDirectory)/hr-seats-angular-prod.tar.gz'
+              artifactName: 'prod-distribution'
+              publishLocation: 'pipeline'
+
+          - script: |
+              echo "✅ Both distributions built and published:"
+              echo "   - Development: hr-seats-angular-dev.tar.gz"
+              echo "   - Production: hr-seats-angular-prod.tar.gz"
+            displayName: '📦 Build Summary'
+
+  # Release stage - only runs on version tags
+  - stage: Release
+    displayName: 'Release Tagged Version'
+    dependsOn: ValidateAndTest
+    condition: and(succeeded(), eq(variables.isTag, true))
+    jobs:
+      - job: PublishRelease
+        displayName: 'Publish Release Artifacts'
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - task: NodeTool@0
+            inputs:
+              versionSpec: '$(NODE_VERSION)'
+            displayName: 'Install Node.js'
+
+          - task: Cache@2
+            inputs:
+              key: 'npm | "$(Agent.OS)" | package-lock.json'
+              restoreKeys: |
+                npm | "$(Agent.OS)"
+              path: $(NPM_CACHE_FOLDER)
+            displayName: 'Cache npm dependencies'
+
+          - script: npm config set cache $(NPM_CACHE_FOLDER) --global
+            displayName: 'Configure npm cache'
+
+          - script: |
+              echo "🏷️ Release Information:"
+              echo "Tag Version: $(tagVersion)"
+              echo "Clean Version (for Artifacts): $(cleanVersion)"
+              echo "Build Source Branch: $(Build.SourceBranch)"
+              echo "Is Tag Build: $(isTag)"
+            displayName: '🏷️ Display Release Information'
+
+          - script: npm ci
+            displayName: '📦 Install dependencies'
+
+          # Update version in package.json to match tag
+          - script: |
+              echo "📝 Updating package.json version to $(cleanVersion)..."
+              npm version $(cleanVersion) --no-git-tag-version --allow-same-version
+            displayName: '📝 Update package version'
+
+          # Build development distribution with version
+          - script: |
+              echo "🔨 Building development release distribution..."
+              npm run build:dev
+              
+              cd dist/seat-management/browser
+              VERSIONED_ARCHIVE="hr-seats-angular-dev-$(tagVersion).tar.gz"
+              tar czf ../../../$VERSIONED_ARCHIVE *
+              cd ../../..
+              echo "✅ Created $VERSIONED_ARCHIVE"
+            displayName: '🔨 Build Dev Release Distribution'
+
+          # Build test distribution with version
+          - script: |
+              echo "🔨 Building test release distribution..."
+              npm run build:test
+              
+              cd dist/seat-management/browser
+              VERSIONED_ARCHIVE="hr-seats-angular-test-$(tagVersion).tar.gz"
+              tar czf ../../../$VERSIONED_ARCHIVE *
+              cd ../../..
+              echo "✅ Created $VERSIONED_ARCHIVE"
+            displayName: '🔨 Build Test Release Distribution'
+
+          # Build production distribution with version
+          - script: |
+              echo "🔨 Building production release distribution..."
+              npm run build:prod
+              
+              cd dist/seat-management/browser
+              VERSIONED_ARCHIVE="hr-seats-angular-prod-$(tagVersion).tar.gz"
+              tar czf ../../../$VERSIONED_ARCHIVE *
+              cd ../../..
+              echo "✅ Created $VERSIONED_ARCHIVE"
+            displayName: '🔨 Build Prod Release Distribution'
+
+          # Publish release artifacts
+          - task: PublishPipelineArtifact@1
+            displayName: '📦 Publish Dev Release Artifact'
+            inputs:
+              targetPath: '$(System.DefaultWorkingDirectory)/hr-seats-angular-dev-$(tagVersion).tar.gz'
+              artifactName: 'dev-release-$(tagVersion)'
+              publishLocation: 'pipeline'
+
+          - task: PublishPipelineArtifact@1
+            displayName: '📦 Publish Test Release Artifact'
+            inputs:
+              targetPath: '$(System.DefaultWorkingDirectory)/hr-seats-angular-test-$(tagVersion).tar.gz'
+              artifactName: 'test-release-$(tagVersion)'
+              publishLocation: 'pipeline'
+
+          - task: PublishPipelineArtifact@1
+            displayName: '📦 Publish Prod Release Artifact'
+            inputs:
+              targetPath: '$(System.DefaultWorkingDirectory)/hr-seats-angular-prod-$(tagVersion).tar.gz'
+              artifactName: 'prod-release-$(tagVersion)'
+              publishLocation: 'pipeline'
+
+          # Install Python for Jenkins Pipeline Manager
+          - task: UsePythonVersion@0
+            displayName: 'Setup Python 3.11'
+            inputs:
+              versionSpec: '3.11'
+
+          # Authenticate with Azure Artifacts Python feed (if using internal package)
+          - task: PipAuthenticate@1
+            displayName: '🔐 Authenticate with Azure Artifacts Feed'
+            inputs:
+              artifactFeeds: 'SIAG-IAA'
+            condition: and(succeeded(), ne(variables['SKIP_JENKINS'], 'true'))
+
+          # Install Jenkins Pipeline Manager
+          - script: |
+              pip list
+              echo "📦 Installing Jenkins Pipeline Manager..."
+              echo "Feed URL: $(PIP_INDEX_URL)"
+              echo "Installing jenkins-pipeline-manager version 0.1.132..."
+              pip install jenkins-pipeline-manager==0.1.132 --index-url https://pypi.org/simple \
+                  --extra-index-url $(PIP_INDEX_URL)
+            displayName: '📦 Install Jenkins Pipeline Manager'
+            condition: and(succeeded(), ne(variables['SKIP_JENKINS'], 'true'))
+
+          # Package distributions for Jenkins deployment
+          - script: |
+              echo "📦 Packaging distributions for Jenkins deployment..."
+              # Create a combined package with all distributions
+              mkdir -p jenkins-deploy
+              cp hr-seats-angular-dev-$(tagVersion).tar.gz jenkins-deploy/
+              cp hr-seats-angular-test-$(tagVersion).tar.gz jenkins-deploy/
+              cp hr-seats-angular-prod-$(tagVersion).tar.gz jenkins-deploy/
+              cd jenkins-deploy
+              tar czf ../hr-seats-angular-$(tagVersion).tar.gz *
+              cd ..
+              echo "✅ Created combined package: hr-seats-angular-$(tagVersion).tar.gz"
+            displayName: '📦 Package for Jenkins'
+
+          # Deploy TEST environment via Jenkins
+          - bash: |
+              echo "🚀 Triggering Jenkins deployment for TEST environment..."
+              jpm deploy \
+                --jenkins-user "$(JENKINS_USERNAME)" \
+                --jenkins-token "$(JENKINS_API_TOKEN)" \
+                --yaml-file infra/jenkins_pipeline.yaml \
+                --war-file hr-seats-angular-test-$(tagVersion).tar.gz \
+                --target-env "TEST"
+            displayName: '🚀 Trigger Jenkins Pipeline for TEST'
+            env:
+              JENKINS_USERNAME: $(JENKINS_USERNAME)
+              JENKINS_API_TOKEN: $(JENKINS_API_TOKEN)
+            condition: and(succeeded(), ne(variables['SKIP_JENKINS'], 'true'))
+
+          # Trigger PROD deployment via Jenkins 
+          - bash: |
+              echo "📋 Creating Jenkins job for PROD deployment..."
+              echo "Note: PROD deployment must be triggered manually in Jenkins"
+              jpm trigger \
+                --jenkins-user "$(JENKINS_USERNAME)" \
+                --jenkins-token "$(JENKINS_API_TOKEN)" \
+                --yaml-file infra/jenkins_pipeline.yaml \
+                --war-file hr-seats-angular-prod-$(tagVersion).tar.gz \
+                --target-env "PROD"
+            displayName: '📋 Create Jenkins Job for PROD'
+            env:
+              JENKINS_USERNAME: $(JENKINS_USERNAME)
+              JENKINS_API_TOKEN: $(JENKINS_API_TOKEN)
+            condition: and(succeeded(), ne(variables['SKIP_JENKINS'], 'true'), ne(variables['SKIP_PROD_JENKINS'], 'true'))
+
+          # Publish to Azure Artifacts (Universal Packages)
+          - task: UniversalPackages@0
+            condition: false
+            displayName: '📤 Publish to Azure Artifacts Feed'
+            inputs:
+              command: 'publish'
+              publishDirectory: '$(System.DefaultWorkingDirectory)'
+              feedsToUsePublish: 'internal'
+              vstsFeedPublish: '$(System.TeamProjectId)/hr-seats-angular-feed'
+              vstsFeedPackagePublish: 'hr-seats-angular'
+              versionOption: 'custom'
+              versionPublish: '$(cleanVersion)'
+              packagePublishDescription: 'HR Seats Angular application release $(tagVersion)'
+            continueOnError: true
+
+
+          - script: |
+              echo "🎉 Release $(tagVersion) published successfully!"
+              echo "📦 Release contains:"
+              echo "   - Dev Distribution: hr-seats-angular-dev-$(tagVersion).tar.gz"
+              echo "   - Test Distribution: hr-seats-angular-test-$(tagVersion).tar.gz"
+              echo "   - Prod Distribution: hr-seats-angular-prod-$(tagVersion).tar.gz"
+              echo ""
+              echo "✅ The release artifacts are now available:"
+              echo "   - Pipeline artifacts: dev-release-$(tagVersion), test-release-$(tagVersion) & prod-release-$(tagVersion)"
+              echo "   - Azure Artifacts feed: hr-seats-angular-feed @ $(cleanVersion)"
+              echo "   - Jenkins deployment: TEST environment triggered automatically (using test build)"
+              echo ""
+              echo "📌 Notes:"
+              echo "   - TEST deployment is automatic via Jenkins using test environment configuration"
+              echo "   - PROD deployment job currently disabled by SKIP_PROD_JENKINS variable"
+              echo "   - Check Jenkins for deployment status"
+            displayName: '🎉 Release Summary'

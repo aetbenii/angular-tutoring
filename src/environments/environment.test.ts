@@ -7,7 +7,7 @@ export const environment = {
     apiEndpoint: 'https://test-api-desk.services.siag.it/api',
     authority: 'https://testb2c01siag.b2clogin.com/testb2c01siag.onmicrosoft.com/B2C_1A_SIGNUP_SIGNIN_SPID',
     authorityDomain: 'testb2c01siag.b2clogin.com',
-    redirectUri: 'https://local-desk.services.siag.it:8443',
-    postLogoutRedirectUri: 'https://local-desk.services.siag.it:8443'
+    redirectUri: 'https://test-desk.services.siag.it',
+    postLogoutRedirectUri: 'https://test-desk.services.siag.it'
   }
 }; 
