@@ -1,9 +1,10 @@
 import { Injectable, signal } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Floor } from '../interfaces/floor.interface';
-import { catchError, retry, throwError } from 'rxjs';
 import { Observable } from 'rxjs';
+import { catchError, retry, throwError, map, tap } from 'rxjs';
 import { Seat } from '../interfaces/seat.interface';
+import { Room } from '../interfaces/room.interface';
 import { environment } from '../../environments/environment';
 
 /**
@@ -66,27 +67,24 @@ export class FloorService {
    * Updates the floorsSignal with the retrieved data
    */
   private loadFloors() {
-    this.http.get<Floor[]>(`${this.apiUrl}/floors`, {
-      headers: {
-        'Accept': 'application/json'
-      },
-      withCredentials: true
-    })
-    .pipe(
-      retry(1),
-      catchError(this.handleError)
-    )
-    .subscribe({
-      next: (floors) => {
-        floors.sort((a, b) => a.id - b.id);
-        console.log('Received floors data:', floors);
-        this.floorsSignal.set(floors);
-      },
-      error: (error) => {
-        console.error('Error loading floors:', error);
-        this.floorsSignal.set([]);
-      }
+    this.getFloors$().subscribe({
+      next: (floors) => this.floorsSignal.set(floors),
+      error: () => this.floorsSignal.set([])
     });
+  }
+
+  /**
+   * Exposes an Observable to fetch all floors
+   */
+  getFloors$(): Observable<Floor[]> {
+    return this.http.get<Floor[]>(`${this.apiUrl}/floors`, {
+      headers: { 'Accept': 'application/json' },
+      withCredentials: true
+    }).pipe(
+      retry(1),
+      catchError(this.handleError),
+      map((floors) => [...floors].sort((a, b) => a.id - b.id))
+    );
   }
 
   /**
@@ -95,39 +93,51 @@ export class FloorService {
    * Updates the selectedFloorSignal with the retrieved floor data
    */
   loadFloor(floorNumber: number): Promise<void> {
+    // Deprecated shim: prefer selectFloor$(floorNumber).toPromise() pattern in components
     return new Promise((resolve, reject) => {
-      this.http.get<Floor>(`${this.apiUrl}/floors/${floorNumber}/embed`, {
-        headers: {
-          'Accept': 'application/json'
-        },
-        withCredentials: true
-      })
-      .pipe(
-        retry(1),
-        catchError(this.handleError)
-      )
-      .subscribe({
-        next: (floor) => {
-          console.log('Received floor data:', floor);
-          // Sort rooms by roomNumber before setting the floor data
-          const sortedFloor = {
-            ...floor,
-            rooms: [...floor.rooms].sort((a, b) => {
-              const aNum = parseInt(a.roomNumber);
-              const bNum = parseInt(b.roomNumber);
-              return aNum - bNum;
-            })
-          };
-          this.selectedFloorSignal.set(sortedFloor);
-          resolve();  // Aufruf von resolve, wenn das Laden erfolgreich war
-        },
+      this.selectFloor$(floorNumber).subscribe({
+        next: () => resolve(),
         error: (error) => {
-          console.error('Error loading floor:', error);
           this.selectedFloorSignal.set(null);
-          reject(error);  // Fehlerbehandlung mit reject
+          reject(error);
         }
       });
     });
+  }
+
+  /**
+   * Fetch a specific floor with embedded relations as an Observable
+   */
+  getFloor$(floorNumber: number): Observable<Floor> {
+    return this.http.get<Floor>(`${this.apiUrl}/floors/${floorNumber}/embed`, {
+      headers: { 'Accept': 'application/json' },
+      withCredentials: true
+    }).pipe(
+      retry(1),
+      catchError(this.handleError),
+      map((floor) => this.normalizeFloor(floor))
+    );
+  }
+
+  /**
+   * Fetch and set selected floor as a side-effect; returns the stream for composition
+   */
+  selectFloor$(floorNumber: number): Observable<Floor> {
+    return this.getFloor$(floorNumber).pipe(
+      tap((floor) => this.selectedFloorSignal.set(floor))
+    );
+  }
+
+  /**
+   * Normalize incoming floor data (sorting, etc.)
+   */
+  private normalizeFloor(floor: Floor): Floor {
+    const sortedRooms: Room[] = [...floor.rooms].sort((a, b) => {
+      const aNum = parseInt(a.roomNumber as unknown as string);
+      const bNum = parseInt(b.roomNumber as unknown as string);
+      return aNum - bNum;
+    });
+    return { ...floor, rooms: sortedRooms };
   }
 
   /**
@@ -154,6 +164,45 @@ export class FloorService {
       });
 
       return { ...floor, rooms: updatedRooms };
+    });
+  }
+
+  /**
+   * Granular state update helpers for seats/rooms
+   */
+  updateSeatInRoom(roomId: number, seatId: number, seatPatch: Partial<Seat>): void {
+    this.selectedFloorSignal.update(current => {
+      if (!current) return null;
+      const rooms = current.rooms.map(room => {
+        if (room.id !== roomId) return room;
+        const seats = room.seats.map(seat => seat.id === seatId ? { ...seat, ...seatPatch } : seat);
+        return { ...room, seats };
+      });
+      return { ...current, rooms };
+    });
+  }
+
+  deleteSeatFromRoom(roomId: number, seatId: number): void {
+    this.selectedFloorSignal.update(current => {
+      if (!current) return null;
+      const rooms = current.rooms.map(room => {
+        if (room.id !== roomId) return room;
+        const seats = room.seats.filter(seat => seat.id !== seatId);
+        return { ...room, seats };
+      });
+      return { ...current, rooms };
+    });
+  }
+
+  addSeatToRoom(roomId: number, seat: Seat): void {
+    this.selectedFloorSignal.update(current => {
+      if (!current) return null;
+      const rooms = current.rooms.map(room => {
+        if (room.id !== roomId) return room;
+        const seats = [...room.seats, seat].sort((a, b) => a.id - b.id);
+        return { ...room, seats };
+      });
+      return { ...current, rooms };
     });
   }
 
