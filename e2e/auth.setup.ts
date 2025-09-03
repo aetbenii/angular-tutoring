@@ -27,4 +27,4 @@ setup('authenticate', async ({ page }) => {
 
   // Save the authentication state to a file
   await page.context().storageState({ path: authFile });
-}); 
+});

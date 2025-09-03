@@ -37,10 +37,10 @@ module.exports = function (config) {
       // Coverage thresholds (optional - set to 0 to disable)
       check: {
         global: {
-          statements: 0,
-          branches: 0,
-          functions: 0,
-          lines: 0
+          statements: 40,
+          branches: 25,
+          functions: 40,
+          lines: 40
         }
       }
     },

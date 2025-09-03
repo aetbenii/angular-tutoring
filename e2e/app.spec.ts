@@ -6,10 +6,10 @@ test.describe('Seat Management Application', () => {
     await expect(page).toHaveTitle('SeatManagement');
   });
 
-  test('should navigate to offices page', async ({ page }) => {
+  test('should navigate to floor plan page', async ({ page }) => {
     await page.goto('/');
-    await page.click('text=Offices');
-    await expect(page).toHaveURL(/.*\/offices/);
+    await page.click('text=Floor Plan');
+    await expect(page).toHaveURL(/.*\/floor-map/);
   });
 
   test('should navigate to employees page', async ({ page }) => {
