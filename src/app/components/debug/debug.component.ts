@@ -7,10 +7,15 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatListModule } from '@angular/material/list';
 import { AuthService } from '../../auth/auth.service';
 import { environment } from '../../../environments/environment';
 import { B2CTokenClaims } from '../../auth/b2c-token.interface';
 import { AccountInfo } from '@azure/msal-browser';
+import { VersionService, BuildInfo, BackendStatus } from '../../services/version.service';
+import { Observable } from 'rxjs';
 
 interface MsalConfig {
   auth: {
@@ -44,7 +49,10 @@ interface AuthServiceWithMsal {
     MatTabsModule,
     MatIconModule,
     MatSnackBarModule,
-    MatChipsModule
+    MatChipsModule,
+    MatProgressSpinnerModule,
+    MatDividerModule,
+    MatListModule
   ],
   templateUrl: './debug.component.html',
   styleUrls: ['./debug.component.scss']
@@ -57,11 +65,19 @@ export class DebugComponent implements OnInit {
   userInfo: AccountInfo | null = null;
   isLoading = false;
   environment = environment;
+  
+  buildInfo$: Observable<BuildInfo>;
+  backendStatus$: Observable<BackendStatus | null>;
+  isLoadingBackend = false;
 
   constructor(
     private authService: AuthService,
-    private snackBar: MatSnackBar
-  ) {}
+    private snackBar: MatSnackBar,
+    private versionService: VersionService
+  ) {
+    this.buildInfo$ = this.versionService.getBuildInfo();
+    this.backendStatus$ = this.versionService.getBackendStatus();
+  }
 
   async ngOnInit() {
     await this.loadTokens();
@@ -306,6 +322,19 @@ export class DebugComponent implements OnInit {
     } catch (error) {
       console.error('Error decoding JWT:', error);
       return null;
+    }
+  }
+
+  async refreshBackendStatus() {
+    this.isLoadingBackend = true;
+    try {
+      this.backendStatus$ = this.versionService.refreshBackendStatus();
+      this.snackBar.open('Backend status refreshed', 'Close', { duration: 2000 });
+    } catch (error) {
+      console.error('Error refreshing backend status:', error);
+      this.snackBar.open('Error refreshing backend status', 'Close', { duration: 3000 });
+    } finally {
+      this.isLoadingBackend = false;
     }
   }
 }

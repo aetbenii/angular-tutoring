@@ -1,4 +1,246 @@
 <div class="debug-container">
+  <!-- Version Info Section -->
+  <mat-card class="version-card">
+    <mat-card-header>
+      <mat-card-title>
+        <mat-icon>info</mat-icon>
+        Application Version
+      </mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      @if (buildInfo$ | async; as buildInfo) {
+        <div class="version-info">
+          <mat-list>
+            <mat-list-item>
+              <mat-icon matListItemIcon>label</mat-icon>
+              <span matListItemTitle>Version</span>
+              <span matListItemLine>{{ buildInfo.version }}</span>
+            </mat-list-item>
+            <mat-list-item>
+              <mat-icon matListItemIcon>build</mat-icon>
+              <span matListItemTitle>Build Number</span>
+              <span matListItemLine>{{ buildInfo.buildNumber || 'N/A' }}</span>
+            </mat-list-item>
+            <mat-list-item>
+              <mat-icon matListItemIcon>schedule</mat-icon>
+              <span matListItemTitle>Build Date</span>
+              <span matListItemLine>{{ buildInfo.buildDate || 'N/A' }}</span>
+            </mat-list-item>
+            <mat-list-item>
+              <mat-icon matListItemIcon>account_tree</mat-icon>
+              <span matListItemTitle>Branch</span>
+              <span matListItemLine>{{ buildInfo.branch || 'N/A' }}</span>
+            </mat-list-item>
+            <mat-list-item>
+              <mat-icon matListItemIcon>commit</mat-icon>
+              <span matListItemTitle>Commit</span>
+              <span matListItemLine>{{ buildInfo.commit || 'N/A' }}</span>
+            </mat-list-item>
+            <mat-list-item>
+              <mat-icon matListItemIcon>local_offer</mat-icon>
+              <span matListItemTitle>Tag</span>
+              <span matListItemLine>{{ buildInfo.tag || 'N/A' }}</span>
+            </mat-list-item>
+            <mat-list-item>
+              <mat-icon matListItemIcon>cloud</mat-icon>
+              <span matListItemTitle>Environment</span>
+              <span matListItemLine>{{ buildInfo.environment }}</span>
+            </mat-list-item>
+            <mat-list-item>
+              <mat-icon matListItemIcon>code</mat-icon>
+              <span matListItemTitle>Angular Version</span>
+              <span matListItemLine>{{ buildInfo.angularVersion || 'N/A' }}</span>
+            </mat-list-item>
+          </mat-list>
+        </div>
+      } @else {
+        <p>Loading version information...</p>
+      }
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Backend Status Section -->
+  <mat-card class="backend-status-card">
+    <mat-card-header>
+      <mat-card-title>
+        <mat-icon>dns</mat-icon>
+        Backend Status
+      </mat-card-title>
+    </mat-card-header>
+    <mat-card-actions>
+      <button mat-raised-button color="accent" (click)="refreshBackendStatus()" [disabled]="isLoadingBackend">
+        <mat-icon>refresh</mat-icon>
+        Refresh Backend Status
+      </button>
+    </mat-card-actions>
+    <mat-card-content>
+      @if (backendStatus$ | async; as status) {
+        @if (status) {
+          <div class="backend-status">
+            <h3>Service Information</h3>
+            <mat-list>
+              <mat-list-item>
+                <mat-icon matListItemIcon>label</mat-icon>
+                <span matListItemTitle>Service Name</span>
+                <span matListItemLine>{{ status.name }}</span>
+              </mat-list-item>
+              <mat-list-item>
+                <mat-icon matListItemIcon>verified</mat-icon>
+                <span matListItemTitle>Version</span>
+                <span matListItemLine>{{ status.version }}</span>
+              </mat-list-item>
+              <mat-list-item>
+                <mat-icon matListItemIcon>settings</mat-icon>
+                <span matListItemTitle>Profile</span>
+                <span matListItemLine>{{ status.profile }}</span>
+              </mat-list-item>
+              <mat-list-item>
+                <mat-icon matListItemIcon>schedule</mat-icon>
+                <span matListItemTitle>Timestamp</span>
+                <span matListItemLine>{{ status.timestamp }}</span>
+              </mat-list-item>
+            </mat-list>
+
+            <mat-divider></mat-divider>
+            
+            <h3>Build Information</h3>
+            <mat-list>
+              <mat-list-item>
+                <mat-icon matListItemIcon>build</mat-icon>
+                <span matListItemTitle>Build Number</span>
+                <span matListItemLine>{{ status.build.number }}</span>
+              </mat-list-item>
+              <mat-list-item>
+                <mat-icon matListItemIcon>code</mat-icon>
+                <span matListItemTitle>Java Version</span>
+                <span matListItemLine>{{ status.build.javaVersion }}</span>
+              </mat-list-item>
+              <mat-list-item>
+                <mat-icon matListItemIcon>schedule</mat-icon>
+                <span matListItemTitle>Build Time</span>
+                <span matListItemLine>{{ status.build.time }}</span>
+              </mat-list-item>
+            </mat-list>
+
+            <mat-divider></mat-divider>
+
+            <h3>Git Information</h3>
+            <mat-list>
+              <mat-list-item>
+                <mat-icon matListItemIcon>account_tree</mat-icon>
+                <span matListItemTitle>Branch</span>
+                <span matListItemLine>{{ status.git.branch }}</span>
+              </mat-list-item>
+              <mat-list-item>
+                <mat-icon matListItemIcon>commit</mat-icon>
+                <span matListItemTitle>Commit ID</span>
+                <span matListItemLine>{{ status.git.commitId }}</span>
+              </mat-list-item>
+              <mat-list-item>
+                <mat-icon matListItemIcon>message</mat-icon>
+                <span matListItemTitle>Commit Message</span>
+                <span matListItemLine>{{ status.git.commitMessage }}</span>
+              </mat-list-item>
+              <mat-list-item>
+                <mat-icon matListItemIcon>local_offer</mat-icon>
+                <span matListItemTitle>Tags</span>
+                <span matListItemLine>{{ status.git.tags || 'N/A' }}</span>
+              </mat-list-item>
+              <mat-list-item>
+                <mat-icon matListItemIcon>warning</mat-icon>
+                <span matListItemTitle>Dirty</span>
+                <span matListItemLine>{{ status.git.dirty ? 'Yes' : 'No' }}</span>
+              </mat-list-item>
+            </mat-list>
+
+            <mat-divider></mat-divider>
+
+            <h3>Runtime Information</h3>
+            <mat-list>
+              <mat-list-item>
+                <mat-icon matListItemIcon>timer</mat-icon>
+                <span matListItemTitle>Uptime</span>
+                <span matListItemLine>{{ status.runtime.uptime }}</span>
+              </mat-list-item>
+              <mat-list-item>
+                <mat-icon matListItemIcon>code</mat-icon>
+                <span matListItemTitle>JVM Version</span>
+                <span matListItemLine>{{ status.runtime.jvmVersion }}</span>
+              </mat-list-item>
+              <mat-list-item>
+                <mat-icon matListItemIcon>business</mat-icon>
+                <span matListItemTitle>Java Vendor</span>
+                <span matListItemLine>{{ status.runtime.javaVendor }}</span>
+              </mat-list-item>
+              <mat-list-item>
+                <mat-icon matListItemIcon>access_time</mat-icon>
+                <span matListItemTitle>Start Time</span>
+                <span matListItemLine>{{ status.runtime.startTime }}</span>
+              </mat-list-item>
+            </mat-list>
+
+            <mat-divider></mat-divider>
+
+            <h3>Memory Usage</h3>
+            <mat-list>
+              <mat-list-item>
+                <mat-icon matListItemIcon>memory</mat-icon>
+                <span matListItemTitle>Heap Used</span>
+                <span matListItemLine>{{ status.memory.heap.used }} / {{ status.memory.heap.max }} ({{ status.memory.heap.usagePercent }}%)</span>
+              </mat-list-item>
+              <mat-list-item>
+                <mat-icon matListItemIcon>storage</mat-icon>
+                <span matListItemTitle>Non-Heap Used</span>
+                <span matListItemLine>{{ status.memory.nonHeap.used }} / {{ status.memory.nonHeap.committed }}</span>
+              </mat-list-item>
+            </mat-list>
+
+            <mat-divider></mat-divider>
+
+            <h3>Health Status</h3>
+            <mat-list>
+              <mat-list-item>
+                <mat-icon matListItemIcon [class.status-up]="status.health.status === 'UP'" [class.status-down]="status.health.status === 'DOWN'">
+                  {{ status.health.status === 'UP' ? 'check_circle' : 'error' }}
+                </mat-icon>
+                <span matListItemTitle>Overall Status</span>
+                <span matListItemLine [class.status-up]="status.health.status === 'UP'" [class.status-down]="status.health.status === 'DOWN'">
+                  {{ status.health.status }}
+                </span>
+              </mat-list-item>
+              @if (status.health.database) {
+                <mat-list-item>
+                  <mat-icon matListItemIcon [class.status-up]="status.health.database.status === 'UP'" [class.status-down]="status.health.database.status === 'DOWN'">
+                    {{ status.health.database.status === 'UP' ? 'check_circle' : 'error' }}
+                  </mat-icon>
+                  <span matListItemTitle>Database</span>
+                  <span matListItemLine>{{ status.health.database.type }} - {{ status.health.database.status }} ({{ status.health.database.employeeCount }} employees)</span>
+                </mat-list-item>
+              }
+              @if (status.health.roleManager) {
+                <mat-list-item>
+                  <mat-icon matListItemIcon [class.status-up]="status.health.roleManager.status === 'UP'" [class.status-down]="status.health.roleManager.status === 'DOWN'">
+                    {{ status.health.roleManager.status === 'UP' ? 'check_circle' : 'error' }}
+                  </mat-icon>
+                  <span matListItemTitle>Role Manager</span>
+                  <span matListItemLine>{{ status.health.roleManager.status }} {{ status.health.roleManager.mockMode ? '(Mock Mode)' : '' }}</span>
+                </mat-list-item>
+              }
+            </mat-list>
+          </div>
+        } @else {
+          <p>Backend is not available or not responding.</p>
+        }
+      } @else {
+        <div class="loading-container">
+          <mat-spinner diameter="30"></mat-spinner>
+          <p>Loading backend status...</p>
+        </div>
+      }
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Authentication Debug Panel -->
   <mat-card class="header-card">
     <mat-card-header>
       <mat-card-title>

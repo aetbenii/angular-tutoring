@@ -3,7 +3,7 @@
   max-width: 1200px;
   margin: 0 auto;
 
-  .header-card {
+  .header-card, .version-card, .backend-status-card {
     margin-bottom: 20px;
     
     mat-card-title {
@@ -20,6 +20,97 @@
       
       button {
         margin: 0; // Reset default margin
+      }
+    }
+  }
+
+  .version-card {
+    .version-info {
+      mat-list {
+        mat-list-item {
+          height: auto;
+          min-height: 48px;
+          
+          .mat-mdc-list-item-title {
+            font-weight: 500;
+            color: var(--mat-sys-on-surface-variant);
+          }
+          
+          .mat-mdc-list-item-line {
+            color: var(--mat-sys-on-surface);
+            font-family: 'Roboto Mono', monospace;
+            font-size: 14px;
+          }
+        }
+      }
+    }
+  }
+
+  .backend-status-card {
+    .backend-status {
+      h3 {
+        margin: 20px 0 10px;
+        color: var(--mat-sys-primary);
+        font-size: 16px;
+        font-weight: 500;
+        
+        &:first-child {
+          margin-top: 0;
+        }
+      }
+      
+      mat-list {
+        mat-list-item {
+          height: auto;
+          min-height: 48px;
+          
+          .mat-mdc-list-item-title {
+            font-weight: 500;
+            color: var(--mat-sys-on-surface-variant);
+          }
+          
+          .mat-mdc-list-item-line {
+            color: var(--mat-sys-on-surface);
+            font-family: 'Roboto Mono', monospace;
+            font-size: 14px;
+            
+            &.status-up {
+              color: #4caf50;
+              font-weight: 500;
+            }
+            
+            &.status-down {
+              color: #f44336;
+              font-weight: 500;
+            }
+          }
+          
+          mat-icon {
+            &.status-up {
+              color: #4caf50;
+            }
+            
+            &.status-down {
+              color: #f44336;
+            }
+          }
+        }
+      }
+      
+      mat-divider {
+        margin: 20px 0;
+      }
+    }
+    
+    .loading-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px;
+      
+      p {
+        margin-top: 16px;
+        color: var(--mat-sys-on-surface-variant);
       }
     }
   }

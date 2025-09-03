@@ -27,7 +27,7 @@ pool:
   vmImage: 'ubuntu-latest'
 
 variables:
-  NODE_VERSION: '18.x'
+  NODE_VERSION: '22.x'
   NPM_CACHE_FOLDER: $(Pipeline.Workspace)/.npm
   # Indicate if this is a PR build
   isPR: $[eq(variables['Build.Reason'], 'PullRequest')]
@@ -111,12 +111,10 @@ stages:
               summaryFileLocation: 'coverage/seat-management/cobertura-coverage.xml'
             condition: always()
 
-          # Build both development and production bundles for validation
-          - script: npm run build:dev
-            displayName: '🔨 Build development bundle'
-
-          - script: npm run build:prod
-            displayName: '🔨 Build production bundle'
+          # Build production bundle for validation
+          - template: .azure/templates/build-template.yml
+            parameters:
+              environment: production
 
           # Publish built artifacts for later stages
           - publish: $(System.DefaultWorkingDirectory)/dist
@@ -219,35 +217,28 @@ stages:
           - script: npm config set cache $(NPM_CACHE_FOLDER) --global
             displayName: 'Configure npm cache'
 
+          # Get current version from package.json for non-tag builds
+          - script: |
+              echo "Getting version from package.json..."
+              VERSION=$(node -p "require('./package.json').version")
+              echo "Current version: $VERSION"
+              echo "##vso[task.setvariable variable=packageVersion]$VERSION"
+            displayName: '🔍 Get package version'
+
           - script: npm ci
             displayName: '📦 Install dependencies'
 
           # Build development distribution
-          - script: |
-              echo "🔨 Building development distribution..."
-              npm run build:dev
-              
-              echo "📁 Checking dist directory contents:"
-              ls -la dist/ || echo "No dist directory found"
-              
-              # Archive the development build
-              cd dist/seat-management/browser
-              tar czf ../../../hr-seats-angular-dev.tar.gz *
-              cd ../../..
-              echo "✅ Created hr-seats-angular-dev.tar.gz"
-            displayName: '🔨 Build Development Distribution'
+          - template: .azure/templates/build-template.yml
+            parameters:
+              environment: development
+              archiveName: hr-seats-angular-dev.tar.gz
 
           # Build production distribution
-          - script: |
-              echo "🔨 Building production distribution..."
-              npm run build:prod
-              
-              # Archive the production build
-              cd dist/seat-management/browser
-              tar czf ../../../hr-seats-angular-prod.tar.gz *
-              cd ../../..
-              echo "✅ Created hr-seats-angular-prod.tar.gz"
-            displayName: '🔨 Build Production Distribution'
+          - template: .azure/templates/build-template.yml
+            parameters:
+              environment: production
+              archiveName: hr-seats-angular-prod.tar.gz
 
           # Publish both distributions as artifacts
           - task: PublishPipelineArtifact@1
@@ -306,50 +297,36 @@ stages:
               echo "Is Tag Build: $(isTag)"
             displayName: '🏷️ Display Release Information'
 
+          # Update version in package.json to match tag BEFORE installing dependencies
+          - script: |
+              echo "📝 Updating package.json version to $(cleanVersion)..."
+              # Read current package.json
+              cat package.json | jq '.version = "$(cleanVersion)"' > package.json.tmp
+              mv package.json.tmp package.json
+              echo "Updated package.json version:"
+              cat package.json | grep '"version"' | head -1
+            displayName: '📝 Update package version'
+
           - script: npm ci
             displayName: '📦 Install dependencies'
 
-          # Update version in package.json to match tag
-          - script: |
-              echo "📝 Updating package.json version to $(cleanVersion)..."
-              npm version $(cleanVersion) --no-git-tag-version --allow-same-version
-            displayName: '📝 Update package version'
-
           # Build development distribution with version
-          - script: |
-              echo "🔨 Building development release distribution..."
-              npm run build:dev
-              
-              cd dist/seat-management/browser
-              VERSIONED_ARCHIVE="hr-seats-angular-dev-$(tagVersion).tar.gz"
-              tar czf ../../../$VERSIONED_ARCHIVE *
-              cd ../../..
-              echo "✅ Created $VERSIONED_ARCHIVE"
-            displayName: '🔨 Build Dev Release Distribution'
+          - template: .azure/templates/build-template.yml
+            parameters:
+              environment: development
+              archiveName: hr-seats-angular-dev-$(tagVersion).tar.gz
 
           # Build test distribution with version
-          - script: |
-              echo "🔨 Building test release distribution..."
-              npm run build:test
-              
-              cd dist/seat-management/browser
-              VERSIONED_ARCHIVE="hr-seats-angular-test-$(tagVersion).tar.gz"
-              tar czf ../../../$VERSIONED_ARCHIVE *
-              cd ../../..
-              echo "✅ Created $VERSIONED_ARCHIVE"
-            displayName: '🔨 Build Test Release Distribution'
+          - template: .azure/templates/build-template.yml
+            parameters:
+              environment: test
+              archiveName: hr-seats-angular-test-$(tagVersion).tar.gz
 
           # Build production distribution with version
-          - script: |
-              echo "🔨 Building production release distribution..."
-              npm run build:prod
-              
-              cd dist/seat-management/browser
-              VERSIONED_ARCHIVE="hr-seats-angular-prod-$(tagVersion).tar.gz"
-              tar czf ../../../$VERSIONED_ARCHIVE *
-              cd ../../..
-              echo "✅ Created $VERSIONED_ARCHIVE"
-            displayName: '🔨 Build Prod Release Distribution'
+          - template: .azure/templates/build-template.yml
+            parameters:
+              environment: production
+              archiveName: hr-seats-angular-prod-$(tagVersion).tar.gz
 
           # Publish release artifacts
           - task: PublishPipelineArtifact@1

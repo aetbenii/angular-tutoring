@@ -1,0 +1,14 @@
+{
+  "version": "0.16.0",
+  "buildNumber": "local-1756817911433",
+  "buildDate": "2025-09-02T12:58:31.433Z",
+  "branch": "authentication",
+  "commit": "64d8139",
+  "commitFull": "64d8139cd040448f2bd672cf3601244597d0ffe6",
+  "tag": "none",
+  "environment": "development",
+  "angularVersion": "19.1.0",
+  "isCI": false,
+  "buildAgent": "local",
+  "buildReason": "manual"
+}
