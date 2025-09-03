@@ -155,6 +155,10 @@ stages:
             artifact: angular-dist
             displayName: '📥 Download build artifacts'
 
+          # Install Playwright browsers and required OS dependencies
+          - script: npx playwright install --with-deps
+            displayName: '🧰 Install Playwright browsers'
+
           - script: npm run e2e:ci
             displayName: '🧪 Run E2E tests'
             continueOnError: false

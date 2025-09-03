@@ -31,9 +31,12 @@ export default defineConfig({
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: process.env['CI'] ? 'retain-on-failure' : 'on-first-retry',
-    screenshot: 'only-on-failure',
+    screenshot: 'on',
     video: process.env['CI'] ? 'retain-on-failure' : 'off'
   },
+
+  /* Ensure all artifacts (screenshots, traces, videos) go to a known folder for CI publishing */
+  outputDir: 'test-results',
 
   /* Configure projects for major browsers */
   projects: [

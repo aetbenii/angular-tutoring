@@ -12,7 +12,6 @@ import { MatButtonModule } from '@angular/material/button';
 import { jsPDF } from 'jspdf';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { UnassignSeatDialogComponent } from '../unassign-seat-dialog/unassign-seat-dialog.component';
-import { HttpClient } from '@angular/common/http';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Floor } from '../../interfaces/floor.interface';
 import { Room } from '../../interfaces/room.interface';
@@ -55,7 +54,6 @@ export class FloorPlansComponent implements OnInit {
     private floorService: FloorService,
     private authService: AuthService,
     private dialog: MatDialog,
-    private http: HttpClient,
     private snackBar: MatSnackBar,
     private seatService: SeatService
   ) {
