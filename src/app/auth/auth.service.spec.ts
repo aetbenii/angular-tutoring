@@ -1,10 +1,11 @@
 import { TestBed, fakeAsync, flushMicrotasks } from '@angular/core/testing';
-import { Router } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
 import { of } from 'rxjs';
 import { AuthService } from './auth.service';
 import { ProfileService } from '../services/profile.service';
 import { MsalService } from '@azure/msal-angular';
+import { BehaviorSubject } from 'rxjs';
+import type { UserProfile } from '../services/profile.service';
 
 class MockMsalInstance {
   initialize = jasmine.createSpy('initialize').and.returnValue(Promise.resolve());
@@ -71,7 +72,7 @@ describe('AuthService', () => {
     const token = `aaa.${base64url(payload)}.bbb`;
     const decoded = service.decodeJWT(token);
     expect(decoded).toBeTruthy();
-    expect((decoded as any).sub).toBe('123');
+    expect((decoded as Record<string, unknown>)['sub']).toBe('123');
   });
 
   it('should return null for invalid JWT', () => {
@@ -81,7 +82,7 @@ describe('AuthService', () => {
 
   it('isAdmin should reflect profile state', () => {
     expect(service.isAdmin()).toBeFalse();
-    (service as any).userProfileSubject.next({
+    (service as unknown as { userProfileSubject: BehaviorSubject<UserProfile | null> }).userProfileSubject.next({
       firstName: 'A', lastName: 'B', subject: 's', roles: ['admin'], isAdmin: true,
       workingEmail: '', userId: 'u', email: '', username: ''
     });

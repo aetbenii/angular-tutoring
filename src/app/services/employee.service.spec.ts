@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { EmployeeService, EmployeeResponse } from './employee.service';
+import type { Employee as AppEmployee } from '../interfaces/employee.interface';
 import { environment } from '../../environments/environment';
 
 interface Employee { id: number; firstName: string; lastName: string; }
@@ -138,7 +139,12 @@ describe('EmployeeService', () => {
   });
 
   it('createEmployee should POST and return employee', (done) => {
-    const payload = { firstName: 'New', lastName: 'User' } as any;
+    const payload: Omit<AppEmployee, 'id' | 'createdAt'> = {
+      fullName: 'New User',
+      occupation: 'Dev',
+      seats: [],
+      seatIds: []
+    };
     const created = { id: 10, firstName: 'New', lastName: 'User' } as Employee;
 
     service.createEmployee(payload).subscribe((res) => {
@@ -152,7 +158,12 @@ describe('EmployeeService', () => {
   });
 
   it('updateEmployee should PUT and return employee', (done) => {
-    const payload = { firstName: 'Upd', lastName: 'User' } as any;
+    const payload: Omit<AppEmployee, 'id' | 'createdAt'> = {
+      fullName: 'Upd User',
+      occupation: 'Dev',
+      seats: [],
+      seatIds: []
+    };
     const updated = { id: 7, firstName: 'Upd', lastName: 'User' } as Employee;
 
     service.updateEmployee(7, payload).subscribe((res) => {

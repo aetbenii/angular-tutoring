@@ -55,7 +55,7 @@ describe('DashboardService', () => {
   it('should cache the result and not refetch on subsequent subscriptions', (done) => {
     const mockResponse = { totalEmployees: 3, totalFloors: 2, totalOffices: 2, totalSeats: 10, occupancyRate: 30, officesPerFloor: [], seatsPerFloor: [] };
 
-    let values: number[] = [];
+    const values: number[] = [];
 
     // Subscribe twice before flush to simulate multiple consumers
     service.getDashboardStats().subscribe((res) => values.push(res.totalEmployees));

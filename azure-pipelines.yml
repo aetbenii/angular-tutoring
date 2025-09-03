@@ -160,10 +160,35 @@ stages:
             continueOnError: false
 
           - task: PublishTestResults@2
+            displayName: '📋 Publish Playwright JUnit Results'
+            inputs:
+              testResultsFormat: 'JUnit'
+              testResultsFiles: 'e2e-results/results.xml'
+              testRunTitle: 'Playwright E2E Tests'
+              failTaskOnFailedTests: true
+            condition: always()
+
+          - task: PublishPipelineArtifact@1
+            displayName: '📤 Upload Playwright HTML Report'
+            inputs:
+              targetPath: 'playwright-report'
+              artifactName: 'playwright-report'
+              publishLocation: 'pipeline'
+            condition: always()
+
+          - task: PublishPipelineArtifact@1
+            displayName: '📤 Upload Playwright Test Artifacts (traces, screenshots, videos)'
+            inputs:
+              targetPath: 'test-results'
+              artifactName: 'playwright-artifacts'
+              publishLocation: 'pipeline'
+            condition: always()
+
+          - task: PublishTestResults@2
             displayName: '📋 Publish E2E Test Results'
             inputs:
               testResultsFormat: 'JUnit'
-              testResultsFiles: '**/e2e-results/results.xml'
+              testResultsFiles: 'e2e-results/results.xml'
               testRunTitle: 'E2E Tests'
               failTaskOnFailedTests: true
             condition: always()

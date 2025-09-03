@@ -86,7 +86,7 @@ describe('FloorPlansComponent', () => {
   ];
 
   beforeEach(async () => {
-    const floorServiceSpy = jasmine.createSpyObj('FloorService', ['loadFloor'], {
+    const floorServiceSpy = jasmine.createSpyObj('FloorService', ['loadFloor', 'addSeatToRoom', 'deleteSeatFromRoom', 'updateSeatInRoom'], {
       floors: signal([mockFloor]),
       selectedFloor: signal(mockFloor)
     });

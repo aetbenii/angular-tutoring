@@ -21,7 +21,8 @@ import { RouterModule } from '@angular/router';
 import { DeleteSeatDialogComponent } from './delete-seat-dialog/delete-seat-dialog.component';
 import { AddSeatDialogComponent } from './add-seat-dialog/add-seat-dialog.component';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { environment } from '../../../environments/environment';
+// environment reference removed (unused)
+import { SeatService } from '../../services/seat.service';
 
 @Component({
   selector: 'app-floor-plans',
@@ -55,7 +56,8 @@ export class FloorPlansComponent implements OnInit {
     private authService: AuthService,
     private dialog: MatDialog,
     private http: HttpClient,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private seatService: SeatService
   ) {
     this.floors = floorService.floors;
     this.selectedFloor = floorService.selectedFloor;
@@ -133,60 +135,35 @@ export class FloorPlansComponent implements OnInit {
   }
 
   private createSeat(seatNumber: string, roomId: number): void {
-  const seatData = {
-    seatNumber: seatNumber,
-    room: { id: roomId }
-  };
-
-  this.http.post(`${environment.apiBaseUrl}/seats`, seatData)
-    .pipe(takeUntilDestroyed(this.destroyRef))
-    .subscribe({
-              next: async () => {
-          const currentFloor = this.selectedFloorControl.value;
-          if (currentFloor !== null) {
-            await this.floorService.loadFloor(currentFloor);
-            const floor = this.selectedFloor();
-            if (floor) {
-              for (const room of floor.rooms) {
-                room.seats = room.seats.sort((a, b) => a.id - b.id);
-              }
-            }
-          }
-        this.snackBar.open('Seat created successfully', 'Close', {
-          duration: 3000
-        });
-      },
-      error: (error) => {
-        console.error('Error creating seat:', error);
-        this.snackBar.open('Failed to create seat', 'Close', {
-          duration: 5000,
-          horizontalPosition: 'end',
-          verticalPosition: 'top',
-          panelClass: ['error-snackbar']
-        });
-      }
-    });
-}
+    this.seatService.createSeat(roomId, seatNumber)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.snackBar.open('Seat created successfully', 'Close', { duration: 3000 });
+        },
+        error: (error) => {
+          console.error('Error creating seat:', error);
+          this.snackBar.open('Failed to create seat', 'Close', {
+            duration: 5000,
+            horizontalPosition: 'end',
+            verticalPosition: 'top',
+            panelClass: ['error-snackbar']
+          });
+        }
+      });
+  }
 
 
   private deleteSeat(seatId:number):void{
-    this.http.delete(`${environment.apiBaseUrl}/seats/${seatId}`)
+    const floor = this.selectedFloor();
+    if (!floor) return;
+    const room = floor.rooms.find(r => r.seats.some(s => s.id === seatId));
+    if (!room) return;
+    this.seatService.deleteSeat(room.id, seatId)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: async () => {
-          const currentFloor = this.selectedFloorControl.value;
-          if (currentFloor !== null) {
-            await this.floorService.loadFloor(currentFloor);
-            const floor = this.selectedFloor();
-            if (floor) {
-              for (const room of floor.rooms) {
-                room.seats = room.seats.sort((a, b) => a.id - b.id);
-              }
-            }
-          }
-          this.snackBar.open('Seat deleted successfully', 'Close', {
-            duration: 3000,
-          });
+        next: () => {
+          this.snackBar.open('Seat deleted successfully', 'Close', { duration: 3000 });
         },
         error: (error) => {
           console.error('Error deleting seat:', error);
@@ -201,26 +178,11 @@ export class FloorPlansComponent implements OnInit {
   }
 
   private unassignSeat(employeeId: number, seatId: number): void {
-    this.http.delete(`${environment.apiBaseUrl}/employees/${employeeId}/seats/${seatId}`)
+    this.seatService.unassignSeat(employeeId, seatId)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: async () => {
-          // Refresh the floor data
-          const currentFloor = this.selectedFloorControl.value;
-          if (currentFloor !== null) {
-            await this.floorService.loadFloor(currentFloor);
-            const floor = this.selectedFloor();
-            if (floor) {
-              for (const room of floor.rooms) {
-                room.seats = room.seats.sort((a, b) => a.id - b.id);
-              }
-            }
-          }
-          this.snackBar.open('Seat unassigned successfully', 'Close', {
-            duration: 3000,
-            
-            
-          });
+        next: () => {
+          this.snackBar.open('Seat unassigned successfully', 'Close', { duration: 3000 });
         },
         error: (error) => {
           console.error('Error unassigning seat:', error);

@@ -1,6 +1,6 @@
 {
   "name": "seat-management",
-  "version": "0.16.0",
+  "version": "α.β.γ",
   "scripts": {
     "ng": "ng",
     "start": "ng serve --host 0.0.0.0",
