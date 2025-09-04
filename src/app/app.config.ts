@@ -7,7 +7,7 @@ import { MsalModule, MsalRedirectComponent, MsalGuard } from '@azure/msal-angula
 import { InteractionType, PublicClientApplication } from '@azure/msal-browser';
 
 import { routes } from './app.routes';
-import { msalConfig, loginRequest } from './auth/msal/msal.config';
+import { msalConfig, loginRequest, msalInterceptorConfig } from './auth/msal/msal.config';
 import { AuthInterceptor } from './auth/auth-interceptor';
 import { HttpErrorInterceptor } from './interceptors/http-error.interceptor';
 
@@ -18,10 +18,7 @@ export const appConfig: ApplicationConfig = {
         interactionType: InteractionType.Redirect,
         authRequest: loginRequest,
       },
-      {
-        interactionType: InteractionType.Redirect,
-        protectedResourceMap: new Map()
-      }
+      msalInterceptorConfig
     )),
     {
       provide: HTTP_INTERCEPTORS,

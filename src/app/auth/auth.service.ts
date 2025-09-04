@@ -5,7 +5,9 @@ import { BehaviorSubject } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { loginRequest, accessTokenRequest, apiScope } from './msal/msal.config';
 import { ProfileService, UserProfile } from '../services/profile.service';
-import { isDevelopment } from './auth.config';
+import { environment } from '../../environments/environment';
+
+const isDevelopment = !environment.production;
 
 @Injectable({
   providedIn: 'root'

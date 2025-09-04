@@ -3,7 +3,9 @@ import { HttpInterceptor, HttpRequest, HttpHandler, HttpEvent } from '@angular/c
 import { Observable, from, throwError } from 'rxjs';
 import { switchMap, catchError } from 'rxjs/operators';
 import { AuthService } from './auth.service';
-import { isDevelopment } from './auth.config';
+import { environment } from '../../environments/environment';
+
+const isDevelopment = !environment.production;
 
 @Injectable()
 export class AuthInterceptor implements HttpInterceptor {

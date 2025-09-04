@@ -1,6 +1,8 @@
 import { LogLevel, Configuration, BrowserCacheLocation, InteractionType } from '@azure/msal-browser';
-import { isDevelopment } from '../auth.config';
+import { MsalInterceptorConfiguration } from '@azure/msal-angular';
 import { environment } from '../../../environments/environment';
+
+const isDevelopment = !environment.production;
 
 const isIE = window.navigator.userAgent.indexOf("MSIE ") > -1 || window.navigator.userAgent.indexOf("Trident/") > -1;
 
@@ -104,7 +106,7 @@ export const accessTokenRequest = {
 /**
  * Add here the endpoints for which you want to acquire a token.
  */
-export const msalInterceptorConfig = {
+export const msalInterceptorConfig: MsalInterceptorConfiguration = {
   interactionType: InteractionType.Redirect, // or 'popup'
   protectedResourceMap: new Map([
     [protectedResources.api.endpoint + '/*', protectedResources.api.scopes]
