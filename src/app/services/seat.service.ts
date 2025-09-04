@@ -56,7 +56,11 @@ export class SeatService {
         for (const room of currentFloor.rooms) {
           const seat = room.seats.find(s => s.id === seatId);
           if (seat) {
-            this.floorService.updateSeatInRoom(room.id, seatId, { employees: [] });
+            this.floorService.updateSeatInRoom(room.id, seatId, { 
+              employees: [], 
+              employeeIds: [],
+              occupied: false 
+            });
             break;
           }
         }
