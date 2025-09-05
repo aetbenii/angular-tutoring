@@ -37,6 +37,14 @@ variables:
   tagVersion: $[replace(variables['Build.SourceBranch'], 'refs/tags/', '')]
   # Clean version for Azure Artifacts (remove 'v' prefix for SemVer compliance)
   cleanVersion: $[replace(variables['tagVersion'], 'v', '')]
+  # SonarCloud configuration
+  # Setup Instructions:
+  # 1. Install SonarCloud extension from Azure DevOps Marketplace
+  # 2. Create service connection: Project Settings > Service Connections > New > SonarCloud
+  #    - Name it "SonarCloud" (or update the task to match your connection name)
+  # 3. Set these variables in Pipeline > Edit > Variables:
+  SONAR_ORGANIZATION: 'siag'
+  SONAR_PROJECT_KEY: 'SIAG-IAA_hr-seats-web'
   
 stages:
   - stage: ValidateAndTest
@@ -122,7 +130,72 @@ stages:
             displayName: '📦 Publish build artifacts'
             condition: succeeded()
 
-      # Job 2: E2E Tests (optional, can be enabled later)
+      # Job 2: SonarCloud Analysis
+      - job: SonarCloudAnalysis
+        displayName: 'SonarCloud Code Analysis'
+        dependsOn: BuildAndUnitTests
+        condition: and(succeeded(), ne(variables['SKIP_SONAR'], 'true'))
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - task: NodeTool@0
+            inputs:
+              versionSpec: '$(NODE_VERSION)'
+            displayName: 'Install Node.js'
+
+          - task: Cache@2
+            inputs:
+              key: 'npm | "$(Agent.OS)" | package-lock.json'
+              restoreKeys: |
+                npm | "$(Agent.OS)"
+              path: $(NPM_CACHE_FOLDER)
+            displayName: 'Cache npm dependencies'
+
+          - script: npm config set cache $(NPM_CACHE_FOLDER) --global
+            displayName: 'Configure npm cache'
+
+          - script: npm ci
+            displayName: '📦 Install dependencies'
+
+          # Download the code coverage from unit tests
+          - download: current
+            artifact: angular-dist
+            displayName: '📥 Download build artifacts'
+            continueOnError: true
+
+          # SonarCloud Analysis using Extension v3
+          # Requires: SonarCloud extension v3.4+ from Azure DevOps Marketplace
+          # Service Connection: Create in Project Settings > Service Connections > SonarCloud
+          - task: SonarCloudPrepare@3
+            displayName: '🔍 Prepare SonarCloud analysis'
+            inputs:
+              SonarCloud: 'sonar-cloud'  # Name of your service connection
+              organization: '$(SONAR_ORGANIZATION)'
+              scannerMode: 'cli'  # Use 'cli' mode for TypeScript/JavaScript projects
+              configMode: 'manual'
+              cliProjectKey: '$(SONAR_PROJECT_KEY)'
+              cliProjectName: 'HR Seats Angular'
+              cliSources: 'src'
+              extraProperties: |
+                sonar.exclusions=**/*.spec.ts,**/test.ts,**/*.config.ts,**/e2e/**,**/node_modules/**,**/dist/**
+                sonar.coverage.exclusions=**/*.spec.ts,**/test.ts,**/*.config.ts,**/e2e/**
+                sonar.javascript.lcov.reportPaths=coverage/seat-management/lcov.info
+                sonar.typescript.tsconfigPath=tsconfig.json
+                sonar.qualitygate.wait=true
+
+          - script: npm run build
+            displayName: '🔨 Build for analysis'
+
+          - task: SonarCloudAnalyze@3
+            displayName: '🔍 Run SonarCloud analysis'
+
+          - task: SonarCloudPublish@3
+            displayName: '📊 Publish SonarCloud Quality Gate Result'
+            inputs:
+              pollingTimeoutSec: '300'
+
+      # Job 3: E2E Tests (optional, can be enabled later)
       - job: E2ETests
         displayName: 'E2E Tests'
         dependsOn: BuildAndUnitTests
